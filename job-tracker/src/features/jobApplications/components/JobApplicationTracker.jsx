@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Plus, Filter, Search, Download, Edit, Trash2 } from 'lucide-react';
 import { INITIAL_APPLICATIONS } from '../data/initialApplications';
 import { STATUS_OPTIONS, TYPE_OPTIONS, PRIORITY_OPTIONS } from '../constants/options';
 import { getStatusColor, getPriorityColor } from '../utils/styleTokens';
+import { loadApplications, saveApplications } from '../utils/storage';
 
 const createEmptyFormData = () => ({
   entreprise: '',
@@ -19,12 +20,28 @@ const createEmptyFormData = () => ({
 });
 
 const JobApplicationTracker = () => {
-  const [applications, setApplications] = useState(INITIAL_APPLICATIONS);
+  const [applications, setApplications] = useState(() => {
+    const storedApplications = loadApplications();
+    if (storedApplications && Array.isArray(storedApplications)) {
+      return storedApplications;
+    }
+
+    saveApplications(INITIAL_APPLICATIONS);
+    return INITIAL_APPLICATIONS;
+  });
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [filters, setFilters] = useState({ statut: '', priorite: '', type: '' });
   const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState(createEmptyFormData);
+
+  const persistApplications = useCallback((updater) => {
+    setApplications((prev) => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      saveApplications(next);
+      return next;
+    });
+  }, []);
 
   const resetForm = () => {
     setFormData(createEmptyFormData());
@@ -37,12 +54,12 @@ const JobApplicationTracker = () => {
     }
 
     if (editingId) {
-      setApplications((prev) =>
+      persistApplications((prev) =>
         prev.map((app) => (app.id === editingId ? { ...formData, id: editingId } : app)),
       );
       setEditingId(null);
     } else {
-      setApplications((prev) => [...prev, { ...formData, id: Date.now() }]);
+      persistApplications((prev) => [...prev, { ...formData, id: Date.now() }]);
     }
 
     resetForm();
@@ -56,7 +73,7 @@ const JobApplicationTracker = () => {
   };
 
   const handleDelete = (id) => {
-    setApplications((prev) => prev.filter((app) => app.id !== id));
+    persistApplications((prev) => prev.filter((app) => app.id !== id));
   };
 
   const filteredApplications = useMemo(() => {
