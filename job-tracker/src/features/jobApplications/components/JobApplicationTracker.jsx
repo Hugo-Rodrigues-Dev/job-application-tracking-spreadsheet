@@ -15,6 +15,22 @@ const STATUS_MIGRATIONS = {
 
 const normalizeStatus = (statut) => STATUS_MIGRATIONS[statut] || statut;
 
+const STATUS_ORDER = ['Acceptée', 'Entretien', 'En cours', 'A Envoyer', 'Refusée'];
+
+const sortApplications = (applications) =>
+  Array.isArray(applications)
+    ? [...applications].sort((a, b) => {
+        const indexA = STATUS_ORDER.indexOf(a.statut);
+        const indexB = STATUS_ORDER.indexOf(b.statut);
+        const safeIndexA = indexA === -1 ? STATUS_ORDER.length : indexA;
+        const safeIndexB = indexB === -1 ? STATUS_ORDER.length : indexB;
+
+        if (safeIndexA !== safeIndexB) return safeIndexA - safeIndexB;
+
+        return (b.dateEnvoi || '').localeCompare(a.dateEnvoi || '');
+      })
+    : [];
+
 const normalizeApplications = (applications) =>
   Array.isArray(applications)
     ? applications.map((app) => ({
@@ -41,14 +57,12 @@ const JobApplicationTracker = () => {
   const [applications, setApplications] = useState(() => {
     const storedApplications = loadApplications();
     if (storedApplications && Array.isArray(storedApplications)) {
-      const normalized = normalizeApplications(storedApplications);
-      if (normalized.some((app, index) => app.statut !== storedApplications[index].statut)) {
-        saveApplications(normalized);
-      }
+      const normalized = sortApplications(normalizeApplications(storedApplications));
+      saveApplications(normalized);
       return normalized;
     }
 
-    const seededApplications = normalizeApplications(INITIAL_APPLICATIONS);
+    const seededApplications = sortApplications(normalizeApplications(INITIAL_APPLICATIONS));
     saveApplications(seededApplications);
     return seededApplications;
   });
@@ -62,7 +76,7 @@ const JobApplicationTracker = () => {
     setApplications((prev) => {
       const next = typeof updater === 'function' ? updater(prev) : updater;
       if (!Array.isArray(next)) return prev;
-      const normalized = normalizeApplications(next);
+      const normalized = sortApplications(normalizeApplications(next));
       saveApplications(normalized);
       return normalized;
     });
