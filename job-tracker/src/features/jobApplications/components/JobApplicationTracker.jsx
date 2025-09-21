@@ -4,6 +4,7 @@ import { INITIAL_APPLICATIONS } from '../data/initialApplications';
 import { STATUS_OPTIONS, TYPE_OPTIONS, PRIORITY_OPTIONS } from '../constants/options';
 import { getStatusColor, getStatusRowColor } from '../utils/styleTokens';
 import { loadApplications, saveApplications } from '../utils/storage';
+import { exportApplicationsToExcel } from '../utils/export';
 
 const STATUS_MIGRATIONS = {
   Envoyée: 'A Envoyer',
@@ -178,7 +179,10 @@ const JobApplicationTracker = () => {
                 className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
-            <button className="px-4 py-2 border border-gray-200 rounded-lg text-gray-600 flex items-center gap-2 hover:bg-gray-50">
+            <button
+              onClick={() => exportApplicationsToExcel(applications)}
+              className="px-4 py-2 border border-gray-200 rounded-lg text-gray-600 flex items-center gap-2 hover:bg-gray-50"
+            >
               <Download size={18} />
               Exporter
             </button>
