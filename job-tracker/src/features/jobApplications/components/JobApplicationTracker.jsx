@@ -5,6 +5,23 @@ import { STATUS_OPTIONS, TYPE_OPTIONS, PRIORITY_OPTIONS } from '../constants/opt
 import { getStatusColor, getStatusRowColor } from '../utils/styleTokens';
 import { loadApplications, saveApplications } from '../utils/storage';
 
+const STATUS_MIGRATIONS = {
+  Envoyée: 'A Envoyer',
+  'Offre acceptée': 'Acceptée',
+  Relancée: 'En cours',
+  Refus: 'Refusée',
+};
+
+const normalizeStatus = (statut) => STATUS_MIGRATIONS[statut] || statut;
+
+const normalizeApplications = (applications) =>
+  Array.isArray(applications)
+    ? applications.map((app) => ({
+        ...app,
+        statut: normalizeStatus(app.statut),
+      }))
+    : [];
+
 const createEmptyFormData = () => ({
   entreprise: '',
   localisation: '',
@@ -13,7 +30,7 @@ const createEmptyFormData = () => ({
   lienUrl: '',
   contacts: '',
   dateEnvoi: new Date().toISOString().split('T')[0],
-  statut: 'Envoyée',
+  statut: 'A Envoyer',
   prochaineAction: '',
   priorite: 'Moyenne',
   notes: '',
@@ -23,11 +40,16 @@ const JobApplicationTracker = () => {
   const [applications, setApplications] = useState(() => {
     const storedApplications = loadApplications();
     if (storedApplications && Array.isArray(storedApplications)) {
-      return storedApplications;
+      const normalized = normalizeApplications(storedApplications);
+      if (normalized.some((app, index) => app.statut !== storedApplications[index].statut)) {
+        saveApplications(normalized);
+      }
+      return normalized;
     }
 
-    saveApplications(INITIAL_APPLICATIONS);
-    return INITIAL_APPLICATIONS;
+    const seededApplications = normalizeApplications(INITIAL_APPLICATIONS);
+    saveApplications(seededApplications);
+    return seededApplications;
   });
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -38,8 +60,10 @@ const JobApplicationTracker = () => {
   const persistApplications = useCallback((updater) => {
     setApplications((prev) => {
       const next = typeof updater === 'function' ? updater(prev) : updater;
-      saveApplications(next);
-      return next;
+      if (!Array.isArray(next)) return prev;
+      const normalized = normalizeApplications(next);
+      saveApplications(normalized);
+      return normalized;
     });
   }, []);
 
@@ -67,7 +91,7 @@ const JobApplicationTracker = () => {
   };
 
   const handleEdit = (application) => {
-    setFormData(application);
+    setFormData({ ...application, statut: normalizeStatus(application.statut) });
     setEditingId(application.id);
     setShowForm(true);
   };
@@ -123,21 +147,21 @@ const JobApplicationTracker = () => {
             </div>
             <div className="bg-green-50 p-4 rounded-lg">
               <div className="text-2xl font-bold text-green-600">
-                {applications.filter((app) => app.statut === 'Entretien' || app.statut === 'Offre acceptée').length}
+                {applications.filter((app) => app.statut === 'Entretien' || app.statut === 'Acceptée').length}
               </div>
-              <div className="text-sm text-green-600">Entretiens/Offres</div>
+              <div className="text-sm text-green-600">Entretiens/Acceptées</div>
             </div>
             <div className="bg-orange-50 p-4 rounded-lg">
               <div className="text-2xl font-bold text-orange-600">
-                {applications.filter((app) => app.statut === 'En cours' || app.statut === 'Relancée').length}
+                {applications.filter((app) => app.statut === 'En cours').length}
               </div>
               <div className="text-sm text-orange-600">En cours</div>
             </div>
             <div className="bg-red-50 p-4 rounded-lg">
               <div className="text-2xl font-bold text-red-600">
-                {applications.filter((app) => app.statut === 'Refus').length}
+                {applications.filter((app) => app.statut === 'Refusée').length}
               </div>
-              <div className="text-sm text-red-600">Refus</div>
+              <div className="text-sm text-red-600">Refusées</div>
             </div>
           </div>
         </div>
