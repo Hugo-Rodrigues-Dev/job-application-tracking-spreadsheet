@@ -1,7 +1,6 @@
 # Job Application Tracker – To Do List
 
 ## To Do
-- [ ] Sort applications by status and date applied by default.
 - [ ] Add pagination to the application list for better performance with many entries.
 - [ ] Implement import functionality to bring in data from Excel for example.
 - [ ] Add confirmation dialogs before saving, deleting, or canceling form changes.
@@ -13,6 +12,7 @@
 - [ ] Add user settings for customizing the dashboard view (dark mode, ...).
 
 ## Done
+- [x] Sort applications by status and date applied by default.
 - [x] Implement Excel export for the application list.
 - [x] Implement data persistence so applications survive page reloads.
 - [x] Build core job application tracker with filters, search, and metrics.
