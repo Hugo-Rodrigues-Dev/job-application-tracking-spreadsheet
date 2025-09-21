@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { Plus, Filter, Search, Download, Edit, Trash2 } from 'lucide-react';
 import { INITIAL_APPLICATIONS } from '../data/initialApplications';
 import { STATUS_OPTIONS, TYPE_OPTIONS, PRIORITY_OPTIONS } from '../constants/options';
-import { getStatusColor, getPriorityColor } from '../utils/styleTokens';
+import { getStatusColor, getStatusRowColor } from '../utils/styleTokens';
 import { loadApplications, saveApplications } from '../utils/storage';
 
 const createEmptyFormData = () => ({
@@ -405,7 +405,7 @@ const JobApplicationTracker = () => {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredApplications.map((application) => (
-                <tr key={application.id} className={getPriorityColor(application.priorite)}>
+                <tr key={application.id} className={getStatusRowColor(application.statut)}>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-medium text-gray-900">{application.entreprise}</div>
                     <div className="text-sm text-gray-500">{application.localisation}</div>
