@@ -1,6 +1,7 @@
 # Job Application Tracker – To Do List
 
 ## To Do
+- [ ] Implement import functionality to bring in data from Excel for example.
 - [ ] Display the add/edit form inside a modal overlay rather than inline on the dashboard.
 - [ ] Add confirmation dialogs before saving, deleting, or canceling form changes.
 - [ ] Introduce an archive workflow with a dedicated page and quick archive action.
