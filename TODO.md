@@ -1,7 +1,6 @@
 # Job Application Tracker – To Do List
 
 ## To Do
-- [ ] Implement import functionality to bring in data from Excel for example.
 - [ ] Add confirmation dialogs before saving, deleting, or canceling form changes.
 - [ ] Display the add/edit form inside a modal overlay rather than inline on the dashboard.
 - [ ] Add multilingual support (switch between French and English UI labels).
@@ -11,6 +10,7 @@
 - [ ] Add user settings for customizing the dashboard view (dark mode, ...).
 
 ## Done
+- [x] Implement import functionality to bring in data from Excel for example.
 - [x] Sort applications by status and date applied by default.
 - [x] Add pagination to the application list for better performance with many entries.
 - [x] Implement Excel export for the application list.
