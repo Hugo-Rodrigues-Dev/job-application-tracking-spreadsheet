@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Plus, Filter, Search, Download, Edit, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Plus, Filter, Search, Download, Upload, Edit, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { INITIAL_APPLICATIONS } from '../data/initialApplications';
 import { STATUS_OPTIONS, TYPE_OPTIONS, PRIORITY_OPTIONS } from '../constants/options';
 import { getStatusColor, getStatusRowColor } from '../utils/styleTokens';
 import { loadApplications, saveApplications } from '../utils/storage';
 import { exportApplicationsToExcel } from '../utils/export';
+import { importApplicationsFromExcel } from '../utils/import';
 
 const STATUS_MIGRATIONS = {
   Envoyée: 'A Envoyer',
@@ -73,6 +74,8 @@ const JobApplicationTracker = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState(createEmptyFormData);
   const [currentPage, setCurrentPage] = useState(1);
+  const [isImporting, setIsImporting] = useState(false);
+  const fileInputRef = useRef(null);
 
   const persistApplications = useCallback((updater) => {
     setApplications((prev) => {
@@ -86,6 +89,69 @@ const JobApplicationTracker = () => {
 
   const resetForm = () => {
     setFormData(createEmptyFormData());
+  };
+
+  const handleImport = async (event) => {
+    const input = event.target;
+    const file = input.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+    try {
+      const { imported, skippedEmpty, skippedMissingFields } = await importApplicationsFromExcel(file);
+
+      if (!imported.length) {
+        alert("Aucune candidature valide n'a été trouvée dans ce fichier.");
+        return;
+      }
+
+      const timestamp = Date.now();
+      const importedApplications = imported.map((app, index) => {
+        const defaults = createEmptyFormData();
+        return {
+          ...defaults,
+          ...app,
+          id: timestamp + index,
+          type: app.type || defaults.type,
+          statut: app.statut || defaults.statut,
+          priorite: app.priorite || defaults.priorite,
+          dateEnvoi: app.dateEnvoi || defaults.dateEnvoi,
+        };
+      });
+
+      const replaceExisting = window.confirm(
+        'Voulez-vous remplacer les candidatures existantes par celles du fichier ?\nCliquez sur OK pour remplacer ou Annuler pour les ajouter à la liste actuelle.',
+      );
+
+      persistApplications((prev) => {
+        if (replaceExisting) {
+          return importedApplications;
+        }
+        const existing = Array.isArray(prev) ? prev : [];
+        return [...existing, ...importedApplications];
+      });
+
+      const messages = [`${importedApplications.length} candidature${importedApplications.length > 1 ? 's' : ''} importée${importedApplications.length > 1 ? 's' : ''}`];
+      if (skippedMissingFields) {
+        messages.push(
+          `${skippedMissingFields} ligne${skippedMissingFields > 1 ? 's' : ''} ignorée${
+            skippedMissingFields > 1 ? 's' : ''
+          } (champs obligatoires manquants)`,
+        );
+      }
+      if (skippedEmpty) {
+        messages.push(
+          `${skippedEmpty} ligne${skippedEmpty > 1 ? 's' : ''} vide ignorée${skippedEmpty > 1 ? 's' : ''}`,
+        );
+      }
+      alert(messages.join('. ') + '.');
+    } catch (error) {
+      console.error('Import failed', error);
+      alert(`Échec de l'import : ${error.message}`);
+    } finally {
+      setIsImporting(false);
+      input.value = '';
+    }
   };
 
   const handleSubmit = () => {
@@ -210,6 +276,22 @@ const JobApplicationTracker = () => {
                 className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xlsx,.xls,.csv"
+              onChange={handleImport}
+              className="hidden"
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isImporting}
+              className="px-4 py-2 border border-gray-200 rounded-lg text-gray-600 flex items-center gap-2 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Upload size={18} />
+              {isImporting ? 'Import en cours...' : 'Importer'}
+            </button>
             <button
               onClick={() => exportApplicationsToExcel(applications)}
               className="px-4 py-2 border border-gray-200 rounded-lg text-gray-600 flex items-center gap-2 hover:bg-gray-50"
