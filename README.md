@@ -31,6 +31,9 @@ Landing an internship requires juggling dozens of contacts, deadlines, follow-up
 
 Every change to the pipeline is serialized to the browser’s `localStorage` under a dedicated key. On a first visit, the app seeds sample applications so you always see a populated interface; afterwards, edits, additions, and deletions overwrite that store so your data survives refreshes and restarts with zero backend setup.
 
+**Good practice:** export your tracker data before you leave the application so you always keep an offline Excel backup of your candidatures. 
+If the browser ever clears `localStorage` or something unexpected happens, you can now import that spreadsheet back into the app and recover the full history in seconds.
+
 ## Reuse This Project
 
 Interested in using the tracker for your own internship hunt? Fork or clone the repository, customize the seed data, and extend the features—don’t hesitate to adapt it to your workflow.
