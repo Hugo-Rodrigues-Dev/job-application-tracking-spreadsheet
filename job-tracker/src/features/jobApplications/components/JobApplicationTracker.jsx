@@ -1,5 +1,5 @@
-import { useCallback, useMemo, useState } from 'react';
-import { Plus, Filter, Search, Download, Edit, Trash2 } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Plus, Filter, Search, Download, Edit, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { INITIAL_APPLICATIONS } from '../data/initialApplications';
 import { STATUS_OPTIONS, TYPE_OPTIONS, PRIORITY_OPTIONS } from '../constants/options';
 import { getStatusColor, getStatusRowColor } from '../utils/styleTokens';
@@ -16,6 +16,7 @@ const STATUS_MIGRATIONS = {
 const normalizeStatus = (statut) => STATUS_MIGRATIONS[statut] || statut;
 
 const STATUS_ORDER = ['Acceptée', 'Entretien', 'En cours', 'A Envoyer', 'Refusée'];
+const PAGE_SIZE = 8;
 
 const sortApplications = (applications) =>
   Array.isArray(applications)
@@ -71,6 +72,7 @@ const JobApplicationTracker = () => {
   const [filters, setFilters] = useState({ statut: '', priorite: '', type: '' });
   const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState(createEmptyFormData);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const persistApplications = useCallback((updater) => {
     setApplications((prev) => {
@@ -130,6 +132,21 @@ const JobApplicationTracker = () => {
       return matchesSearch && matchesStatus && matchesPriority && matchesType;
     });
   }, [applications, filters, searchTerm]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredApplications.length / PAGE_SIZE));
+
+  const paginatedApplications = useMemo(() => {
+    const startIndex = (currentPage - 1) * PAGE_SIZE;
+    return filteredApplications.slice(startIndex, startIndex + PAGE_SIZE);
+  }, [filteredApplications, currentPage]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filters, searchTerm]);
+
+  useEffect(() => {
+    setCurrentPage((prev) => Math.min(prev, totalPages));
+  }, [totalPages]);
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -446,7 +463,7 @@ const JobApplicationTracker = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredApplications.map((application) => (
+              {paginatedApplications.map((application) => (
                 <tr key={application.id} className={getStatusRowColor(application.statut)}>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-medium text-gray-900">{application.entreprise}</div>
@@ -496,6 +513,51 @@ const JobApplicationTracker = () => {
             </div>
           )}
         </div>
+        {filteredApplications.length > 0 && (
+          <div className="flex items-center justify-between mt-4">
+            <p className="text-sm text-gray-600">
+              Page {currentPage} sur {totalPages}
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage === 1}
+                className="p-2 rounded border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                aria-label="Première page"
+              >
+                <ChevronsLeft size={16} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="p-2 rounded border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                aria-label="Page précédente"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                className="p-2 rounded border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                aria-label="Page suivante"
+              >
+                <ChevronRight size={16} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={currentPage === totalPages}
+                className="p-2 rounded border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                aria-label="Dernière page"
+              >
+                <ChevronsRight size={16} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
