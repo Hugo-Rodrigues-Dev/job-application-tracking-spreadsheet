@@ -41,12 +41,6 @@ If localStorage ever resets, simply **import the Excel backup** and recover your
 
 ---
 
-## 🤝 Reuse This Project
-Interested in using the tracker for your internship hunt ?  
-➡️ Fork or clone the repository, customize the seed data, and extend the features.  
-
----
-
 ## 📡 Stay Connected
 
 You can connect with me on [LinkedIn](https://www.linkedin.com/in/hugo-rdg/) or follow my GitHub activity.
