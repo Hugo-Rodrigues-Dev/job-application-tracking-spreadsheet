@@ -6,7 +6,22 @@ const intentClasses = {
   danger: 'bg-red-600 hover:bg-red-700 text-white',
 };
 
-const Dialog = ({ open, title, description, actions = [], onClose }) => {
+const sizeClasses = {
+  sm: 'max-w-md',
+  md: 'max-w-lg',
+  lg: 'max-w-2xl',
+  xl: 'max-w-4xl',
+};
+
+const Dialog = ({
+  open,
+  title,
+  description,
+  actions = [],
+  onClose,
+  children,
+  size = 'md',
+}) => {
   if (!open) return null;
 
   const handleOverlayClick = (event) => {
@@ -15,16 +30,25 @@ const Dialog = ({ open, title, description, actions = [], onClose }) => {
     }
   };
 
+  const resolvedSize = sizeClasses[size] || sizeClasses.md;
+  const hasChildren = Boolean(children);
+
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 p-4 sm:p-6"
       onMouseDown={handleOverlayClick}
     >
-      <div className="w-full max-w-lg rounded-xl bg-white shadow-xl" role="dialog" aria-modal="true">
-        <div className="flex items-start justify-between gap-6 border-b border-gray-100 px-6 py-5">
+      <div
+        className={`w-full ${resolvedSize} rounded-xl bg-white shadow-xl flex max-h-[calc(100vh-2rem)] flex-col`}
+        role="dialog"
+        aria-modal="true"
+      >
+        <div className="flex shrink-0 items-start justify-between gap-6 border-b border-gray-100 px-6 py-5">
           <div>
             <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
-            {description ? <p className="mt-2 text-sm text-gray-600">{description}</p> : null}
+            {description && !children ? (
+              <p className="mt-2 text-sm text-gray-600">{description}</p>
+            ) : null}
           </div>
           <button
             type="button"
@@ -35,24 +59,34 @@ const Dialog = ({ open, title, description, actions = [], onClose }) => {
             <X size={20} />
           </button>
         </div>
-        <div className="flex flex-wrap justify-end gap-3 px-6 py-4">
-          {actions.map((action) => {
-            const intentClass = intentClasses[action.intent || 'secondary'] || intentClasses.secondary;
-            return (
-              <button
-                key={action.label}
-                type="button"
-                onClick={action.onClick}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${intentClass} ${
-                  action.disabled ? 'opacity-60 cursor-not-allowed' : ''
-                }`}
-                disabled={action.disabled}
-              >
-                {action.label}
-              </button>
-            );
-          })}
-        </div>
+        {hasChildren ? (
+          <div className="flex-1 overflow-y-auto px-6 py-4">
+            {description ? (
+              <p className="mb-4 text-sm text-gray-600">{description}</p>
+            ) : null}
+            {children}
+          </div>
+        ) : null}
+        {actions.length ? (
+          <div className="flex shrink-0 flex-wrap justify-end gap-3 border-t border-gray-100 px-6 py-4">
+            {actions.map((action) => {
+              const intentClass = intentClasses[action.intent || 'secondary'] || intentClasses.secondary;
+              return (
+                <button
+                  key={action.label}
+                  type="button"
+                  onClick={action.onClick}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${intentClass} ${
+                    action.disabled ? 'opacity-60 cursor-not-allowed' : ''
+                  }`}
+                  disabled={action.disabled}
+                >
+                  {action.label}
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
       </div>
     </div>
   );
