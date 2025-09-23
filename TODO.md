@@ -7,6 +7,11 @@
 - [ ] Replace localStorage with a proper database (e.g. Supabase) to store applications securely.
 - [ ] Add secure user authentication and account management (via Supabase Auth or equivalent) to allow data sync across devices.
 - [ ] Design reminder/notification system for follow-ups.
+- [ ] Implementation of an AI assistant to help with job searches.
+- [ ] Implementation of an AI assistant to optimize the resume based on the desired position and user experiences.
+- [ ] Implement calendar integration to visualize application deadlines and interviews.
+- [ ] Add analytics dashboard with charts to visualize application statistics.
+- [ ] Implementation of an AI assistant to help with interview preparation.
 - [ ] Add user settings for customizing the dashboard view (dark mode, ...).
 
 ## Done
