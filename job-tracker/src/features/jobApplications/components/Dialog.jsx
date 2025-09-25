@@ -1,4 +1,5 @@
 import { X } from 'lucide-react';
+import { useLanguage } from '../i18n/LanguageProvider';
 
 const intentClasses = {
   primary: 'bg-blue-600 hover:bg-blue-700 text-white',
@@ -23,6 +24,8 @@ const Dialog = ({
   size = 'md',
 }) => {
   if (!open) return null;
+
+  const { t } = useLanguage();
 
   const handleOverlayClick = (event) => {
     if (event.target === event.currentTarget) {
@@ -54,7 +57,7 @@ const Dialog = ({
             type="button"
             onClick={onClose}
             className="text-gray-400 transition-colors hover:text-gray-600"
-            aria-label="Fermer le dialogue"
+            aria-label={t('aria.closeDialog')}
           >
             <X size={20} />
           </button>
