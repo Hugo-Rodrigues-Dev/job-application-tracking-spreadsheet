@@ -1,6 +1,10 @@
-<div className="p-4 bg-blue-500 text-white">Tailwind OK ?</div>
+import { LanguageProvider } from './features/jobApplications/i18n/LanguageProvider';
 import { JobApplicationTracker } from './features/jobApplications';
 
-const App = () => <JobApplicationTracker />;
+const App = () => (
+  <LanguageProvider>
+    <JobApplicationTracker />
+  </LanguageProvider>
+);
 
 export default App;
