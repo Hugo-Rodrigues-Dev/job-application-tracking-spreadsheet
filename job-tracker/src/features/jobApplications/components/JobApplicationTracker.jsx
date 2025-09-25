@@ -80,7 +80,6 @@ const JobApplicationTracker = () => {
   const [initialFormSnapshot, setInitialFormSnapshot] = useState(createEmptyFormData);
   const [currentPage, setCurrentPage] = useState(1);
   const [isImporting, setIsImporting] = useState(false);
-  const [pendingImport, setPendingImport] = useState(null);
   const [dialog, setDialog] = useState(null);
   const fileInputRef = useRef(null);
 
@@ -147,10 +146,10 @@ const JobApplicationTracker = () => {
   }, [editingId, formData, persistApplications, closeForm]);
 
   const applyImport = useCallback(
-    (mode) => {
-      if (!pendingImport) return;
+    (mode, data) => {
+      if (!data) return;
 
-      const { applications: importedApplications, summary = {} } = pendingImport;
+      const { applications: importedApplications, summary = {} } = data;
       const { skippedEmpty = 0, skippedMissingFields = 0 } = summary;
 
       if (mode === 'replace') {
@@ -163,8 +162,6 @@ const JobApplicationTracker = () => {
       }
 
       setCurrentPage(1);
-
-      setPendingImport(null);
 
       const summaryKeyBase = mode === 'replace' ? 'import.replaceSummary' : 'import.appendSummary';
       const summaryKey = `${summaryKeyBase}${importedApplications.length > 1 ? 'Plural' : 'Singular'}`;
@@ -192,7 +189,7 @@ const JobApplicationTracker = () => {
         actions: [{ label: t('common.ok'), intent: 'primary' }],
       });
     },
-    [pendingImport, persistApplications, openDialog, setPendingImport, t],
+    [persistApplications, openDialog, t],
   );
 
   const handleImport = async (event) => {
@@ -201,7 +198,6 @@ const JobApplicationTracker = () => {
     if (!file) return;
 
     setIsImporting(true);
-    setPendingImport(null);
     try {
       const { imported, skippedEmpty, skippedMissingFields } = await importApplicationsFromExcel(file);
 
@@ -228,10 +224,10 @@ const JobApplicationTracker = () => {
         };
       });
 
-      setPendingImport({
+      const nextImport = {
         applications: importedApplications,
         summary: { skippedEmpty, skippedMissingFields },
-      });
+      };
 
       const infoParts = [
         t(importedApplications.length > 1 ? 'import.readyPlural' : 'import.readySingular', {
@@ -260,17 +256,16 @@ const JobApplicationTracker = () => {
           {
             label: t('common.cancel'),
             intent: 'secondary',
-            onClick: () => setPendingImport(null),
           },
           {
             label: t('import.appendAction'),
             intent: 'primary',
-            onClick: () => applyImport('append'),
+            onClick: () => applyImport('append', nextImport),
           },
           {
             label: t('import.replaceAction'),
             intent: 'danger',
-            onClick: () => applyImport('replace'),
+            onClick: () => applyImport('replace', nextImport),
           },
         ],
       });
