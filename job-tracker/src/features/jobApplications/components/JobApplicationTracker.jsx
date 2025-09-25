@@ -7,6 +7,8 @@ import { loadApplications, saveApplications } from '../utils/storage';
 import { exportApplicationsToExcel } from '../utils/export';
 import { importApplicationsFromExcel } from '../utils/import';
 import Dialog from './Dialog';
+import LanguageToggle from './LanguageToggle';
+import { useLanguage } from '../i18n/LanguageProvider';
 
 const STATUS_MIGRATIONS = {
   Envoyée: 'A Envoyer',
@@ -57,6 +59,7 @@ const createEmptyFormData = () => ({
 });
 
 const JobApplicationTracker = () => {
+  const { t, translateStatus, translatePriority, translateType } = useLanguage();
   const [applications, setApplications] = useState(() => {
     const storedApplications = loadApplications();
     if (storedApplications && Array.isArray(storedApplications)) {
@@ -150,42 +153,46 @@ const JobApplicationTracker = () => {
       const { applications: importedApplications, summary = {} } = pendingImport;
       const { skippedEmpty = 0, skippedMissingFields = 0 } = summary;
 
-      persistApplications((prev) => {
-        if (mode === 'replace') {
-          return importedApplications;
-        }
-        const existing = Array.isArray(prev) ? prev : [];
-        return [...existing, ...importedApplications];
-      });
+      if (mode === 'replace') {
+        persistApplications(importedApplications);
+      } else {
+        persistApplications((prev) => {
+          const existing = Array.isArray(prev) ? prev : [];
+          return [...existing, ...importedApplications];
+        });
+      }
+
+      setCurrentPage(1);
 
       setPendingImport(null);
 
-      const actionDescription =
-        mode === 'replace'
-          ? `${importedApplications.length} candidature${importedApplications.length > 1 ? 's' : ''} ont remplacé la liste existante.`
-          : `${importedApplications.length} candidature${importedApplications.length > 1 ? 's' : ''} ont été ajoutées à votre liste.`;
+      const summaryKeyBase = mode === 'replace' ? 'import.replaceSummary' : 'import.appendSummary';
+      const summaryKey = `${summaryKeyBase}${importedApplications.length > 1 ? 'Plural' : 'Singular'}`;
+      const actionDescription = t(summaryKey, { count: importedApplications.length });
 
       const details = [actionDescription];
       if (skippedMissingFields) {
         details.push(
-          `${skippedMissingFields} ligne${skippedMissingFields > 1 ? 's' : ''} ignorée${
-            skippedMissingFields > 1 ? 's' : ''
-          } (champs obligatoires manquants).`,
+          t(skippedMissingFields > 1 ? 'import.skipMissingPlural' : 'import.skipMissing', {
+            count: skippedMissingFields,
+          }),
         );
       }
       if (skippedEmpty) {
         details.push(
-          `${skippedEmpty} ligne${skippedEmpty > 1 ? 's' : ''} vide ignorée${skippedEmpty > 1 ? 's' : ''}.`,
+          t(skippedEmpty > 1 ? 'import.skipEmptyPlural' : 'import.skipEmpty', {
+            count: skippedEmpty,
+          }),
         );
       }
 
       openDialog({
-        title: 'Import terminé',
+        title: t('import.completedTitle'),
         description: details.join(' '),
-        actions: [{ label: 'OK', intent: 'primary' }],
+        actions: [{ label: t('common.ok'), intent: 'primary' }],
       });
     },
-    [pendingImport, persistApplications, openDialog, setPendingImport],
+    [pendingImport, persistApplications, openDialog, setPendingImport, t],
   );
 
   const handleImport = async (event) => {
@@ -200,9 +207,9 @@ const JobApplicationTracker = () => {
 
       if (!imported.length) {
         openDialog({
-          title: 'Import incomplet',
-          description: "Aucune candidature valide n'a été trouvée dans ce fichier.",
-          actions: [{ label: 'OK', intent: 'primary' }],
+          title: t('import.incompleteTitle'),
+          description: t('import.incompleteDescription'),
+          actions: [{ label: t('common.ok'), intent: 'primary' }],
         });
         return;
       }
@@ -227,39 +234,41 @@ const JobApplicationTracker = () => {
       });
 
       const infoParts = [
-        `${importedApplications.length} candidature${importedApplications.length > 1 ? 's' : ''} prête${
-          importedApplications.length > 1 ? 's' : ''
-        } à être importée${importedApplications.length > 1 ? 's' : ''}.`,
+        t(importedApplications.length > 1 ? 'import.readyPlural' : 'import.readySingular', {
+          count: importedApplications.length,
+        }),
       ];
       if (skippedMissingFields) {
         infoParts.push(
-          `${skippedMissingFields} ligne${skippedMissingFields > 1 ? 's' : ''} ignorée${
-            skippedMissingFields > 1 ? 's' : ''
-          } pour champs manquants.`,
+          t(skippedMissingFields > 1 ? 'import.skipMissingPlural' : 'import.skipMissing', {
+            count: skippedMissingFields,
+          }),
         );
       }
       if (skippedEmpty) {
         infoParts.push(
-          `${skippedEmpty} ligne${skippedEmpty > 1 ? 's' : ''} vide ignorée${skippedEmpty > 1 ? 's' : ''}.`,
+          t(skippedEmpty > 1 ? 'import.skipEmptyPlural' : 'import.skipEmpty', {
+            count: skippedEmpty,
+          }),
         );
       }
 
       openDialog({
-        title: "Confirmer l'import",
+        title: t('import.confirmTitle'),
         description: infoParts.join(' '),
         actions: [
           {
-            label: 'Annuler',
+            label: t('common.cancel'),
             intent: 'secondary',
             onClick: () => setPendingImport(null),
           },
           {
-            label: 'Ajouter à la liste',
+            label: t('import.appendAction'),
             intent: 'primary',
             onClick: () => applyImport('append'),
           },
           {
-            label: 'Remplacer la liste',
+            label: t('import.replaceAction'),
             intent: 'danger',
             onClick: () => applyImport('replace'),
           },
@@ -268,9 +277,9 @@ const JobApplicationTracker = () => {
     } catch (error) {
       console.error('Import failed', error);
       openDialog({
-        title: "Échec de l'import",
-        description: error.message || "Une erreur inattendue est survenue pendant l'import.",
-        actions: [{ label: 'OK', intent: 'primary' }],
+        title: t('import.failedTitle'),
+        description: error.message || t('import.unexpectedError'),
+        actions: [{ label: t('common.ok'), intent: 'primary' }],
       });
     } finally {
       setIsImporting(false);
@@ -281,23 +290,26 @@ const JobApplicationTracker = () => {
   const handleSubmit = () => {
     if (!formData.entreprise || !formData.localisation || !formData.poste) {
       openDialog({
-        title: 'Champs obligatoires manquants',
-        description: 'Veuillez renseigner une entreprise, une localisation et un poste avant de sauvegarder.',
-        actions: [{ label: 'OK', intent: 'primary' }],
+        title: t('form.validation.missingRequiredTitle'),
+        description: t('form.validation.missingRequiredDescription'),
+        actions: [{ label: t('common.ok'), intent: 'primary' }],
       });
       return;
     }
 
     const isEditing = Boolean(editingId);
+    const confirmTitle = isEditing ? t('form.confirm.updateTitle') : t('form.confirm.saveTitle');
+    const confirmDescription = isEditing
+      ? t('form.confirm.updateDescription')
+      : t('form.confirm.saveDescription');
+    const confirmActionLabel = isEditing ? t('form.update') : t('form.save');
     openDialog({
-      title: isEditing ? 'Confirmer la mise à jour' : 'Enregistrer la candidature ?',
-      description: isEditing
-        ? 'Les modifications apportées à cette candidature seront enregistrées.'
-        : 'Cette candidature sera ajoutée à votre tableau de suivi.',
+      title: confirmTitle,
+      description: confirmDescription,
       actions: [
-        { label: 'Annuler', intent: 'secondary' },
+        { label: t('common.cancel'), intent: 'secondary' },
         {
-          label: isEditing ? 'Mettre à jour' : 'Enregistrer',
+          label: confirmActionLabel,
           intent: 'primary',
           onClick: executeSave,
         },
@@ -313,12 +325,15 @@ const JobApplicationTracker = () => {
 
   const handleDelete = (application) => {
     openDialog({
-      title: 'Supprimer cette candidature ?',
-      description: `Cette action supprimera définitivement la candidature "${application.poste}" chez ${application.entreprise}.`,
+      title: t('form.deleteDialog.title'),
+      description: t('form.deleteDialog.description', {
+        role: application.poste,
+        company: application.entreprise,
+      }),
       actions: [
-        { label: 'Conserver', intent: 'secondary' },
+        { label: t('form.deleteDialog.keep'), intent: 'secondary' },
         {
-          label: 'Supprimer',
+          label: t('form.deleteDialog.remove'),
           intent: 'danger',
           onClick: () => {
             persistApplications((prev) => prev.filter((app) => app.id !== application.id));
@@ -338,15 +353,20 @@ const JobApplicationTracker = () => {
     }
 
     const isEditing = Boolean(editingId);
+    const title = isEditing ? t('form.cancelDialog.editTitle') : t('form.cancelDialog.createTitle');
+    const description = isEditing
+      ? t('form.cancelDialog.editDescription')
+      : t('form.cancelDialog.createDescription');
+    const confirmLabel = isEditing
+      ? t('form.cancelDialog.discardChanges')
+      : t('form.cancelDialog.abandon');
     openDialog({
-      title: isEditing ? 'Annuler les modifications ?' : 'Fermer le formulaire ?',
-      description: isEditing
-        ? 'Les modifications non sauvegardées seront perdues.'
-        : 'Les informations saisies seront effacées.',
+      title,
+      description,
       actions: [
-        { label: 'Continuer la saisie', intent: 'secondary' },
+        { label: t('form.cancelDialog.continueEditing'), intent: 'secondary' },
         {
-          label: isEditing ? 'Annuler les modifications' : 'Abandonner',
+          label: confirmLabel,
           intent: 'danger',
           onClick: () => {
             closeForm();
@@ -392,48 +412,49 @@ const JobApplicationTracker = () => {
       <div className="min-h-screen bg-gray-50 p-6">
         <div className="max-w-7xl mx-auto">
           <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-            <div className="flex justify-between items-center mb-4">
+            <div className="flex flex-col gap-4 mb-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h1 className="text-3xl font-bold text-gray-900">Suivi des Candidatures</h1>
-                <p className="text-gray-600 mt-2">
-                  Gérez efficacement vos candidatures de stage et d'emploi
-                </p>
+                <h1 className="text-3xl font-bold text-gray-900">{t('header.title')}</h1>
+                <p className="mt-2 text-gray-600">{t('header.subtitle')}</p>
               </div>
-              <button
-                onClick={() => {
-                  resetForm();
-                  setEditingId(null);
-                  setShowForm(true);
-                }}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
-              >
-                <Plus size={20} />
-                Nouvelle candidature
-              </button>
+              <div className="flex items-center justify-end gap-3">
+                <LanguageToggle />
+                <button
+                  onClick={() => {
+                    resetForm();
+                    setEditingId(null);
+                    setShowForm(true);
+                  }}
+                  className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700"
+                >
+                  <Plus size={20} />
+                  {t('actions.newApplication')}
+                </button>
+              </div>
             </div>
 
             <div className="grid grid-cols-4 gap-4">
               <div className="bg-blue-50 p-4 rounded-lg">
                 <div className="text-2xl font-bold text-blue-600">{applications.length}</div>
-                <div className="text-sm text-blue-600">Total candidatures</div>
+                <div className="text-sm text-blue-600">{t('stats.total')}</div>
               </div>
               <div className="bg-green-50 p-4 rounded-lg">
                 <div className="text-2xl font-bold text-green-600">
                   {applications.filter((app) => app.statut === 'Entretien' || app.statut === 'Acceptée').length}
                 </div>
-                <div className="text-sm text-green-600">Entretiens/Acceptées</div>
+                <div className="text-sm text-green-600">{t('stats.interviewsAccepted')}</div>
               </div>
               <div className="bg-orange-50 p-4 rounded-lg">
                 <div className="text-2xl font-bold text-orange-600">
                   {applications.filter((app) => app.statut === 'En cours').length}
                 </div>
-                <div className="text-sm text-orange-600">En cours</div>
+                <div className="text-sm text-orange-600">{t('stats.inProgress')}</div>
               </div>
               <div className="bg-red-50 p-4 rounded-lg">
                 <div className="text-2xl font-bold text-red-600">
                   {applications.filter((app) => app.statut === 'Refusée').length}
                 </div>
-                <div className="text-sm text-red-600">Refusées</div>
+                <div className="text-sm text-red-600">{t('stats.rejected')}</div>
               </div>
             </div>
           </div>
@@ -444,7 +465,7 @@ const JobApplicationTracker = () => {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                 <input
                   type="text"
-                  placeholder="Rechercher par entreprise, poste ou localisation"
+                  placeholder={t('search.placeholder')}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -464,20 +485,20 @@ const JobApplicationTracker = () => {
                 className="px-4 py-2 border border-gray-200 rounded-lg text-gray-600 flex items-center gap-2 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Upload size={18} />
-                {isImporting ? 'Import en cours...' : 'Importer'}
+                {isImporting ? t('actions.importing') : t('actions.import')}
               </button>
               <button
                 onClick={() => exportApplicationsToExcel(applications)}
                 className="px-4 py-2 border border-gray-200 rounded-lg text-gray-600 flex items-center gap-2 hover:bg-gray-50"
               >
                 <Download size={18} />
-                Exporter
+                {t('actions.export')}
               </button>
             </div>
 
             <div className="grid grid-cols-4 gap-4">
               <div className="col-span-1">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Statut</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('filters.statusLabel')}</label>
                 <div className="relative">
                   <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                   <select
@@ -485,17 +506,17 @@ const JobApplicationTracker = () => {
                     onChange={(e) => setFilters((prev) => ({ ...prev, statut: e.target.value }))}
                     className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="">Tous les statuts</option>
+                    <option value="">{t('filters.statusAll')}</option>
                     {STATUS_OPTIONS.map((status) => (
                       <option key={status} value={status}>
-                        {status}
+                        {translateStatus(status)}
                       </option>
                     ))}
                   </select>
                 </div>
               </div>
               <div className="col-span-1">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Priorité</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('filters.priorityLabel')}</label>
                 <div className="relative">
                   <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                   <select
@@ -503,17 +524,17 @@ const JobApplicationTracker = () => {
                     onChange={(e) => setFilters((prev) => ({ ...prev, priorite: e.target.value }))}
                     className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="">Toutes les priorités</option>
+                    <option value="">{t('filters.priorityAll')}</option>
                     {PRIORITY_OPTIONS.map((priority) => (
                       <option key={priority} value={priority}>
-                        {priority}
+                        {translatePriority(priority)}
                       </option>
                     ))}
                   </select>
                 </div>
               </div>
               <div className="col-span-1">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('filters.typeLabel')}</label>
                 <div className="relative">
                   <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                   <select
@@ -521,10 +542,10 @@ const JobApplicationTracker = () => {
                     onChange={(e) => setFilters((prev) => ({ ...prev, type: e.target.value }))}
                     className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="">Tous les types</option>
+                    <option value="">{t('filters.typeAll')}</option>
                     {TYPE_OPTIONS.map((type) => (
                       <option key={type} value={type}>
-                        {type}
+                        {translateType(type)}
                       </option>
                     ))}
                   </select>
@@ -538,7 +559,7 @@ const JobApplicationTracker = () => {
                   }}
                   className="w-full px-4 py-2 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50"
                 >
-                  Réinitialiser
+                  {t('actions.resetFilters')}
                 </button>
               </div>
             </div>
@@ -549,22 +570,22 @@ const JobApplicationTracker = () => {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Entreprise
+                  {t('table.headers.company')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Poste
+                  {t('table.headers.position')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Statut
+                  {t('table.headers.status')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Priorité
+                  {t('table.headers.priority')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Prochaine action
+                  {t('table.headers.nextAction')}
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
+                  {t('table.headers.actions')}
                 </th>
               </tr>
             </thead>
@@ -577,15 +598,15 @@ const JobApplicationTracker = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">{application.poste}</div>
-                    <div className="text-sm text-gray-500">{application.type}</div>
+                    <div className="text-sm text-gray-500">{translateType(application.type)}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(application.statut, application.prochaineAction)}`}>
-                      {application.statut}
+                      {translateStatus(application.statut)}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {application.priorite}
+                    {translatePriority(application.priorite)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {application.prochaineAction || '—'}
@@ -595,14 +616,14 @@ const JobApplicationTracker = () => {
                       <button
                         onClick={() => handleEdit(application)}
                         className="text-blue-600 hover:text-blue-900"
-                        aria-label="Modifier la candidature"
+                        aria-label={t('actions.editApplication')}
                       >
                         <Edit size={18} />
                       </button>
                       <button
                         onClick={() => handleDelete(application)}
                         className="text-red-600 hover:text-red-900"
-                        aria-label="Supprimer la candidature"
+                        aria-label={t('actions.deleteApplication')}
                       >
                         <Trash2 size={18} />
                       </button>
@@ -615,22 +636,20 @@ const JobApplicationTracker = () => {
 
           {filteredApplications.length === 0 && (
             <div className="p-8 text-center text-gray-500">
-              Aucune candidature ne correspond à vos filtres pour le moment.
+              {t('table.emptyState')}
             </div>
           )}
         </div>
         {filteredApplications.length > 0 && (
           <div className="flex items-center justify-between mt-4">
-            <p className="text-sm text-gray-600">
-              Page {currentPage} sur {totalPages}
-            </p>
+            <p className="text-sm text-gray-600">{t('pagination.pageIndicator', { current: currentPage, total: totalPages })}</p>
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => setCurrentPage(1)}
                 disabled={currentPage === 1}
                 className="p-2 rounded border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                aria-label="Première page"
+                aria-label={t('pagination.first')}
               >
                 <ChevronsLeft size={16} />
               </button>
@@ -639,7 +658,7 @@ const JobApplicationTracker = () => {
                 onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
                 disabled={currentPage === 1}
                 className="p-2 rounded border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                aria-label="Page précédente"
+                aria-label={t('pagination.previous')}
               >
                 <ChevronLeft size={16} />
               </button>
@@ -648,7 +667,7 @@ const JobApplicationTracker = () => {
                 onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
                 disabled={currentPage === totalPages}
                 className="p-2 rounded border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                aria-label="Page suivante"
+                aria-label={t('pagination.next')}
               >
                 <ChevronRight size={16} />
               </button>
@@ -657,7 +676,7 @@ const JobApplicationTracker = () => {
                 onClick={() => setCurrentPage(totalPages)}
                 disabled={currentPage === totalPages}
                 className="p-2 rounded border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                aria-label="Dernière page"
+                aria-label={t('pagination.last')}
               >
                 <ChevronsRight size={16} />
               </button>
@@ -668,17 +687,17 @@ const JobApplicationTracker = () => {
     </div>
       <Dialog
         open={showForm}
-        title={editingId ? 'Modifier une candidature' : 'Nouvelle candidature'}
+        title={editingId ? t('form.titleEdit') : t('form.titleNew')}
         onClose={handleCancelForm}
         size="xl"
         actions={[
           {
-            label: 'Annuler',
+            label: t('form.cancel'),
             intent: 'secondary',
             onClick: handleCancelForm,
           },
           {
-            label: editingId ? 'Mettre à jour' : 'Enregistrer',
+            label: editingId ? t('form.update') : t('form.save'),
             intent: 'primary',
             onClick: handleSubmit,
           },
@@ -686,37 +705,37 @@ const JobApplicationTracker = () => {
       >
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Entreprise *</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('form.labels.company')}</label>
             <input
               type="text"
               value={formData.entreprise}
               onChange={(e) => setFormData({ ...formData, entreprise: e.target.value })}
               className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Nom de l'entreprise"
+              placeholder={t('form.placeholders.company')}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Poste *</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('form.labels.position')}</label>
             <input
               type="text"
               value={formData.poste}
               onChange={(e) => setFormData({ ...formData, poste: e.target.value })}
               className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Titre du poste"
+              placeholder={t('form.placeholders.position')}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Localisation *</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('form.labels.location')}</label>
             <input
               type="text"
               value={formData.localisation}
               onChange={(e) => setFormData({ ...formData, localisation: e.target.value })}
               className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Ville, Pays"
+              placeholder={t('form.placeholders.location')}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('form.labels.type')}</label>
             <select
               value={formData.type}
               onChange={(e) => setFormData({ ...formData, type: e.target.value })}
@@ -724,13 +743,13 @@ const JobApplicationTracker = () => {
             >
               {TYPE_OPTIONS.map((type) => (
                 <option key={type} value={type}>
-                  {type}
+                  {translateType(type)}
                 </option>
               ))}
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Date d'envoi</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('form.labels.sentDate')}</label>
             <input
               type="date"
               value={formData.dateEnvoi}
@@ -739,7 +758,7 @@ const JobApplicationTracker = () => {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Statut</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('form.labels.status')}</label>
             <select
               value={formData.statut}
               onChange={(e) => setFormData({ ...formData, statut: e.target.value })}
@@ -747,23 +766,23 @@ const JobApplicationTracker = () => {
             >
               {STATUS_OPTIONS.map((status) => (
                 <option key={status} value={status}>
-                  {status}
+                  {translateStatus(status)}
                 </option>
               ))}
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Prochaine action</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('form.labels.nextAction')}</label>
             <input
               type="text"
               value={formData.prochaineAction}
               onChange={(e) => setFormData({ ...formData, prochaineAction: e.target.value })}
               className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Ex : Relancer le 15/02"
+              placeholder={t('form.placeholders.nextAction')}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Priorité</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('form.labels.priority')}</label>
             <select
               value={formData.priorite}
               onChange={(e) => setFormData({ ...formData, priorite: e.target.value })}
@@ -771,39 +790,39 @@ const JobApplicationTracker = () => {
             >
               {PRIORITY_OPTIONS.map((priority) => (
                 <option key={priority} value={priority}>
-                  {priority}
+                  {translatePriority(priority)}
                 </option>
               ))}
             </select>
           </div>
           <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Lien</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('form.labels.link')}</label>
             <input
               type="url"
               value={formData.lienUrl}
               onChange={(e) => setFormData({ ...formData, lienUrl: e.target.value })}
               className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="https://..."
+              placeholder={t('form.placeholders.link')}
             />
           </div>
           <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Contacts</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('form.labels.contacts')}</label>
             <textarea
               rows={2}
               value={formData.contacts}
               onChange={(e) => setFormData({ ...formData, contacts: e.target.value })}
               className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Nom - email - LinkedIn"
+              placeholder={t('form.placeholders.contacts')}
             />
           </div>
           <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('form.labels.notes')}</label>
             <textarea
               rows={3}
               value={formData.notes}
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
               className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Informations complémentaires"
+              placeholder={t('form.placeholders.notes')}
             />
           </div>
         </div>
