@@ -11,6 +11,20 @@ export const translations = {
       title: 'Suivi des Candidatures',
       subtitle: "Gérez efficacement vos candidatures de stage et d'emploi",
     },
+    navigation: {
+      brand: {
+        title: 'Job Tracker',
+        subtitle: 'Gardez vos candidatures à jour',
+      },
+      items: {
+        dashboard: 'Tableau de bord',
+        analytics: 'Analyses',
+        calendar: 'Calendrier',
+        companies: 'Entreprises',
+        settings: 'Paramètres',
+      },
+      hint: 'Bientôt : analytics, personnalisation et plus encore.',
+    },
     stats: {
       total: 'Total candidatures',
       interviewsAccepted: 'Entretiens/Acceptées',
@@ -166,6 +180,20 @@ export const translations = {
     header: {
       title: 'Application Tracker',
       subtitle: 'Manage your internship and job applications efficiently',
+    },
+    navigation: {
+      brand: {
+        title: 'Job Tracker',
+        subtitle: 'Keep your applications on track',
+      },
+      items: {
+        dashboard: 'Dashboard',
+        analytics: 'Analytics',
+        calendar: 'Calendar',
+        companies: 'Companies',
+        settings: 'Settings',
+      },
+      hint: 'Coming soon: analytics, customization, and more.',
     },
     stats: {
       total: 'Total applications',
