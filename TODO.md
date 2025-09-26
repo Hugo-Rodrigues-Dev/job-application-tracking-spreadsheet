@@ -2,8 +2,8 @@
 
 ## To Do
 - [ ] Introduce an archive workflow with a dedicated page and quick archive action.
-- [ ] Replace localStorage with a proper database (e.g. Supabase) to store applications securely.
-- [ ] Add secure user authentication and account management (via Supabase Auth or equivalent) to allow data sync across devices.
+- [ ] Replace localStorage with a proper database to store applications securely.
+- [ ] Add secure user authentication and account management to allow data sync across devices.
 - [ ] Design reminder/notification system for follow-ups.
 - [ ] Implementation of an AI assistant to help with job searches.
 - [ ] Implementation of an AI assistant to optimize the resume based on the desired position and user experiences.
@@ -13,6 +13,7 @@
 - [ ] Add user settings for customizing the dashboard view (dark mode, ...).
 
 ## Done
+- [x] Add sidebar navigation for different views (dashboard, settings, ...).
 - [x] Add multilingual support (switch between French and English UI labels).
 - [x] Display the add/edit form inside a modal overlay rather than inline on the dashboard.
 - [x] Add confirmation dialogs before saving, deleting, or canceling form changes.
