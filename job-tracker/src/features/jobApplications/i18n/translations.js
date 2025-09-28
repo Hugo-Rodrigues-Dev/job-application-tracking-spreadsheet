@@ -24,12 +24,55 @@ export const translations = {
         settings: 'Paramètres',
       },
       hint: 'Bientôt : analytics, personnalisation et plus encore.',
+      comingSoonTitle: 'Fonctionnalité à venir',
     },
     stats: {
       total: 'Total candidatures',
       interviewsAccepted: 'Entretiens/Acceptées',
       inProgress: 'En cours',
       rejected: 'Refusées',
+    },
+    analytics: {
+      title: "Tableau d'analyse",
+      subtitle: 'Visualisez instantanément les tendances de vos candidatures.',
+      summary: {
+        totalApplications: 'Candidatures suivies',
+        totalHint: 'Nombre total de candidatures enregistrées.',
+        openPipeline: 'Pipeline actif',
+        openPipelineHint: '{count} opportunité(s) encore en cours.',
+        positiveRate: 'Taux positif',
+        positiveRateHint: 'Entretiens : {interviews} · Acceptées : {accepted}',
+        last30Days: 'Nouvelles candidatures (30 j)',
+        last30DaysHint: 'Total des candidatures créées sur les 30 derniers jours.',
+      },
+      charts: {
+        statusDistribution: {
+          title: 'Répartition par statut',
+          description: 'Comparez vos candidatures en fonction de leur statut actuel.',
+        },
+        priorityBreakdown: {
+          title: 'Priorités',
+          description: "Visualisez quelles candidatures nécessitent le plus d'attention.",
+        },
+        timeline: {
+          title: 'Volume de candidatures',
+          description: 'Suivez votre rythme de candidatures jour après jour ou semaine par semaine.',
+        },
+        typeBreakdown: {
+          title: 'Type de candidature',
+          description: "Comprenez la part d'offres et de candidatures spontanées.",
+        },
+      },
+      tooltip: {
+        applications: 'candidatures',
+      },
+      emptyState: 'Pas encore de données à afficher.',
+      emptyTimeline: 'Ajoutez des candidatures pour voir la chronologie.',
+      timelineControls: {
+        daily: 'Par jour',
+        weekly: 'Par semaine',
+        weekLabel: 'Semaine du {date}',
+      },
     },
     search: {
       placeholder: 'Rechercher par entreprise, poste ou localisation',
@@ -194,12 +237,55 @@ export const translations = {
         settings: 'Settings',
       },
       hint: 'Coming soon: analytics, customization, and more.',
+      comingSoonTitle: 'Coming soon',
     },
     stats: {
       total: 'Total applications',
       interviewsAccepted: 'Interviews/Accepted',
       inProgress: 'In progress',
       rejected: 'Rejected',
+    },
+    analytics: {
+      title: 'Analytics overview',
+      subtitle: 'Get a live view of how your applications evolve over time.',
+      summary: {
+        totalApplications: 'Tracked applications',
+        totalHint: 'Overall number of applications you added.',
+        openPipeline: 'Active pipeline',
+        openPipelineHint: '{count} opportunity(ies) still in progress.',
+        positiveRate: 'Positive response rate',
+        positiveRateHint: 'Interviews: {interviews} · Offers: {accepted}',
+        last30Days: 'New applications (30d)',
+        last30DaysHint: 'Count of applications created in the last 30 days.',
+      },
+      charts: {
+        statusDistribution: {
+          title: 'Status distribution',
+          description: 'Compare how many applications sit in each status.',
+        },
+        priorityBreakdown: {
+          title: 'Priorities',
+          description: 'See where your attention is most needed.',
+        },
+        timeline: {
+          title: 'Application timeline',
+          description: 'Track how many applications you send day by day or week by week.',
+        },
+        typeBreakdown: {
+          title: 'Application type',
+          description: 'Understand the mix between job offers and speculative reach-outs.',
+        },
+      },
+      tooltip: {
+        applications: 'applications',
+      },
+      emptyState: 'Nothing to display yet.',
+      emptyTimeline: 'Add more applications to see the timeline fill up.',
+      timelineControls: {
+        daily: 'Daily',
+        weekly: 'Weekly',
+        weekLabel: 'Week of {date}',
+      },
     },
     search: {
       placeholder: 'Search by company, role or location',
