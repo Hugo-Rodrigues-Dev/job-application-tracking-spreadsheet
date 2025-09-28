@@ -8,7 +8,6 @@
 - [ ] Implementation of an AI assistant to help with job searches.
 - [ ] Implementation of an AI assistant to optimize the resume based on the desired position and user experiences.
 - [ ] Implement calendar integration to visualize application deadlines and interviews.
-- [ ] Add analytics dashboard with charts to visualize application statistics.
 - [ ] Implementation of an AI assistant to help with interview preparation.
 - [ ] Add user settings for customizing the dashboard view (dark mode, ...).
 
@@ -24,3 +23,4 @@
 - [x] Implement data persistence so applications survive page reloads.
 - [x] Build core job application tracker with filters, search, and metrics.
 - [x] Application foundation and initial project setup.
+- [x] Add analytics dashboard with charts to visualize application statistics.
