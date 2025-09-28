@@ -9,6 +9,7 @@ import { importApplicationsFromExcel } from '../utils/import';
 import Dialog from './Dialog';
 import LanguageToggle from './LanguageToggle';
 import SidebarNavigation, { MobileNavigation } from './SidebarNavigation';
+import AnalyticsDashboard from './AnalyticsDashboard';
 import { useLanguage } from '../i18n/LanguageProvider';
 
 const STATUS_MIGRATIONS = {
@@ -60,7 +61,7 @@ const createEmptyFormData = () => ({
 });
 
 const JobApplicationTracker = () => {
-  const { t, translateStatus, translatePriority, translateType } = useLanguage();
+  const { t, translateStatus, translatePriority, translateType, language } = useLanguage();
   const [applications, setApplications] = useState(() => {
     const storedApplications = loadApplications();
     if (storedApplications && Array.isArray(storedApplications)) {
@@ -73,6 +74,7 @@ const JobApplicationTracker = () => {
     saveApplications(seededApplications);
     return seededApplications;
   });
+  const [activeTab, setActiveTab] = useState('dashboard');
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [filters, setFilters] = useState({ statut: '', priorite: '', type: '' });
@@ -395,6 +397,199 @@ const JobApplicationTracker = () => {
     return filteredApplications.slice(startIndex, startIndex + PAGE_SIZE);
   }, [filteredApplications, currentPage]);
 
+  const analyticsData = useMemo(() => {
+    const statusCounts = {};
+    const priorityCounts = {};
+    const typeCounts = {};
+
+    STATUS_ORDER.forEach((status) => {
+      statusCounts[status] = 0;
+    });
+    PRIORITY_OPTIONS.forEach((priority) => {
+      priorityCounts[priority] = 0;
+    });
+    TYPE_OPTIONS.forEach((type) => {
+      typeCounts[type] = 0;
+    });
+
+    const timelineWindowDays = 30;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const timelineStart = new Date(today);
+    timelineStart.setDate(timelineStart.getDate() - (timelineWindowDays - 1));
+
+    const timelineDailyCounts = new Map();
+    const timelineWeeklyCounts = new Map();
+
+    const thresholdDate = new Date(today);
+    thresholdDate.setDate(thresholdDate.getDate() - 30);
+
+    let recentActivity = 0;
+
+    const toIsoDayKey = (date) => date.toISOString().split('T')[0];
+    const getWeekStart = (date) => {
+      const result = new Date(date);
+      const day = result.getDay();
+      const offset = day === 0 ? 6 : day - 1;
+      result.setDate(result.getDate() - offset);
+      result.setHours(0, 0, 0, 0);
+      return result;
+    };
+
+    applications.forEach((application) => {
+      const normalizedStatus = normalizeStatus(application.statut);
+      statusCounts[normalizedStatus] = (statusCounts[normalizedStatus] ?? 0) + 1;
+
+      if (application.priorite) {
+        priorityCounts[application.priorite] = (priorityCounts[application.priorite] ?? 0) + 1;
+      }
+
+      if (application.type) {
+        typeCounts[application.type] = (typeCounts[application.type] ?? 0) + 1;
+      }
+
+      if (application.dateEnvoi) {
+        const parsedDate = new Date(application.dateEnvoi);
+        if (!Number.isNaN(parsedDate.valueOf())) {
+          parsedDate.setHours(0, 0, 0, 0);
+
+          if (parsedDate >= timelineStart) {
+            const dayKey = toIsoDayKey(parsedDate);
+            timelineDailyCounts.set(dayKey, (timelineDailyCounts.get(dayKey) ?? 0) + 1);
+
+            const weekStart = getWeekStart(parsedDate);
+            const weekKey = toIsoDayKey(weekStart);
+            timelineWeeklyCounts.set(weekKey, (timelineWeeklyCounts.get(weekKey) ?? 0) + 1);
+          }
+
+          if (parsedDate >= thresholdDate) {
+            recentActivity += 1;
+          }
+        }
+      }
+    });
+
+    const knownStatuses = new Set(STATUS_ORDER);
+    const statusDistribution = [
+      ...STATUS_ORDER.map((status) => ({
+        key: status,
+        label: translateStatus(status),
+        value: statusCounts[status] ?? 0,
+      })),
+      ...Object.entries(statusCounts)
+        .filter(([status]) => !knownStatuses.has(status))
+        .map(([status, value]) => ({
+          key: status,
+          label: translateStatus(status),
+          value,
+        })),
+    ].filter((entry) => entry.value > 0 || knownStatuses.has(entry.key));
+
+    const knownPriorities = new Set(PRIORITY_OPTIONS);
+    const priorityDistribution = [
+      ...PRIORITY_OPTIONS.map((priority) => ({
+        key: priority,
+        label: translatePriority(priority),
+        value: priorityCounts[priority] ?? 0,
+      })),
+      ...Object.entries(priorityCounts)
+        .filter(([priority]) => !knownPriorities.has(priority))
+        .map(([priority, value]) => ({
+          key: priority,
+          label: translatePriority(priority),
+          value,
+        })),
+    ];
+
+    const knownTypes = new Set(TYPE_OPTIONS);
+    const typeDistribution = [
+      ...TYPE_OPTIONS.map((type) => ({
+        key: type,
+        label: translateType(type),
+        value: typeCounts[type] ?? 0,
+      })),
+      ...Object.entries(typeCounts)
+        .filter(([type]) => !knownTypes.has(type))
+        .map(([type, value]) => ({
+          key: type,
+          label: translateType(type),
+          value,
+        })),
+    ];
+
+    const locale = language === 'fr' ? 'fr-FR' : 'en-US';
+    const dailyFormatter = new Intl.DateTimeFormat(locale, { day: '2-digit', month: 'short' });
+    const weeklyFormatter = new Intl.DateTimeFormat(locale, { day: '2-digit', month: 'short' });
+
+    const dailyTimeline = [];
+    const iterDay = new Date(timelineStart);
+    while (iterDay <= today) {
+      const dayKey = toIsoDayKey(iterDay);
+      dailyTimeline.push({
+        key: dayKey,
+        label: dailyFormatter.format(iterDay),
+        value: timelineDailyCounts.get(dayKey) ?? 0,
+      });
+      iterDay.setDate(iterDay.getDate() + 1);
+    }
+
+    const weeklyTimeline = [];
+    const firstWeekStart = getWeekStart(timelineStart);
+    const lastWeekStart = getWeekStart(today);
+    const iterWeek = new Date(firstWeekStart);
+    while (iterWeek <= lastWeekStart) {
+      const weekKey = toIsoDayKey(iterWeek);
+      weeklyTimeline.push({
+        key: weekKey,
+        label: t('analytics.timelineControls.weekLabel', {
+          date: weeklyFormatter.format(iterWeek),
+        }),
+        value: timelineWeeklyCounts.get(weekKey) ?? 0,
+      });
+      iterWeek.setDate(iterWeek.getDate() + 7);
+    }
+
+    const total = applications.length;
+    const accepted = statusCounts.Acceptée ?? 0;
+    const interviews = statusCounts.Entretien ?? 0;
+    const openCount = (statusCounts['A Envoyer'] ?? 0) + (statusCounts['En cours'] ?? 0);
+    const positiveRate = total ? Math.round(((accepted + interviews) / total) * 100) : 0;
+
+    return {
+      summary: {
+        total,
+        openCount,
+        positiveRate,
+        recentActivity,
+        interviews,
+        accepted,
+      },
+      statusDistribution,
+      priorityDistribution,
+      typeDistribution,
+      timeline: {
+        daily: dailyTimeline,
+        weekly: weeklyTimeline,
+      },
+    };
+  }, [applications, language, t, translatePriority, translateStatus, translateType]);
+
+  const handleNavigationSelect = useCallback(
+    (key) => {
+      if (key === 'dashboard' || key === 'analytics') {
+        setActiveTab(key);
+        return;
+      }
+
+      openDialog({
+        title: t('navigation.comingSoonTitle'),
+        description: t('navigation.hint'),
+        actions: [{ label: t('common.ok'), intent: 'primary' }],
+      });
+    },
+    [openDialog, t],
+  );
+
   useEffect(() => {
     setCurrentPage(1);
   }, [filters, searchTerm]);
@@ -406,290 +601,296 @@ const JobApplicationTracker = () => {
   return (
     <>
       <div className="min-h-screen bg-slate-100 lg:flex">
-        <SidebarNavigation />
+        <SidebarNavigation activeKey={activeTab} onSelect={handleNavigationSelect} />
         <div className="flex-1">
-          <MobileNavigation />
+          <MobileNavigation activeKey={activeTab} onSelect={handleNavigationSelect} />
           <div className="mx-auto max-w-7xl px-4 pb-10 pt-6 sm:px-6 lg:px-8">
             <div className="space-y-6">
-              <section className="rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-sm">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <h1 className="text-3xl font-bold text-gray-900">{t('header.title')}</h1>
-                    <p className="mt-2 text-gray-600">{t('header.subtitle')}</p>
-                  </div>
-                  <div className="flex items-center justify-end gap-3">
-                    <LanguageToggle />
-                    <button
-                      onClick={() => {
-                        resetForm();
-                        setEditingId(null);
-                        setShowForm(true);
-                      }}
-                      className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700"
-                    >
-                      <Plus size={20} />
-                      {t('actions.newApplication')}
-                    </button>
-                  </div>
-                </div>
+              {activeTab === 'dashboard' ? (
+                <>
+                  <section className="rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-sm">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <h1 className="text-3xl font-bold text-gray-900">{t('header.title')}</h1>
+                        <p className="mt-2 text-gray-600">{t('header.subtitle')}</p>
+                      </div>
+                      <div className="flex items-center justify-end gap-3">
+                        <LanguageToggle />
+                        <button
+                          onClick={() => {
+                            resetForm();
+                            setEditingId(null);
+                            setShowForm(true);
+                          }}
+                          className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700"
+                        >
+                          <Plus size={20} />
+                          {t('actions.newApplication')}
+                        </button>
+                      </div>
+                    </div>
 
-                <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                  <div className="rounded-xl bg-blue-50 p-4">
-                    <div className="text-2xl font-bold text-blue-600">{applications.length}</div>
-                    <div className="text-sm text-blue-600">{t('stats.total')}</div>
-                  </div>
-                  <div className="rounded-xl bg-green-50 p-4">
-                    <div className="text-2xl font-bold text-green-600">
-                      {applications.filter((app) => app.statut === 'Entretien' || app.statut === 'Acceptée').length}
+                    <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                      <div className="rounded-xl bg-blue-50 p-4">
+                        <div className="text-2xl font-bold text-blue-600">{applications.length}</div>
+                        <div className="text-sm text-blue-600">{t('stats.total')}</div>
+                      </div>
+                      <div className="rounded-xl bg-green-50 p-4">
+                        <div className="text-2xl font-bold text-green-600">
+                          {applications.filter((app) => app.statut === 'Entretien' || app.statut === 'Acceptée').length}
+                        </div>
+                        <div className="text-sm text-green-600">{t('stats.interviewsAccepted')}</div>
+                      </div>
+                      <div className="rounded-xl bg-orange-50 p-4">
+                        <div className="text-2xl font-bold text-orange-600">
+                          {applications.filter((app) => app.statut === 'En cours').length}
+                        </div>
+                        <div className="text-sm text-orange-600">{t('stats.inProgress')}</div>
+                      </div>
+                      <div className="rounded-xl bg-red-50 p-4">
+                        <div className="text-2xl font-bold text-red-600">
+                          {applications.filter((app) => app.statut === 'Refusée').length}
+                        </div>
+                        <div className="text-sm text-red-600">{t('stats.rejected')}</div>
+                      </div>
                     </div>
-                    <div className="text-sm text-green-600">{t('stats.interviewsAccepted')}</div>
-                  </div>
-                  <div className="rounded-xl bg-orange-50 p-4">
-                    <div className="text-2xl font-bold text-orange-600">
-                      {applications.filter((app) => app.statut === 'En cours').length}
-                    </div>
-                    <div className="text-sm text-orange-600">{t('stats.inProgress')}</div>
-                  </div>
-                  <div className="rounded-xl bg-red-50 p-4">
-                    <div className="text-2xl font-bold text-red-600">
-                      {applications.filter((app) => app.statut === 'Refusée').length}
-                    </div>
-                    <div className="text-sm text-red-600">{t('stats.rejected')}</div>
-                  </div>
-                </div>
-              </section>
+                  </section>
 
-              <section className="rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-sm">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
-                  <div className="relative flex-1">
-                    <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                    <input
-                      type="text"
-                      placeholder={t('search.placeholder')}
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full rounded-lg border border-gray-200 px-4 py-2 pl-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div className="flex shrink-0 flex-col gap-3 sm:flex-row">
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept=".xlsx,.xls,.csv"
-                      onChange={handleImport}
-                      className="hidden"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={isImporting}
-                      className="flex items-center justify-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      <Upload size={18} />
-                      {isImporting ? t('actions.importing') : t('actions.import')}
-                    </button>
-                    <button
-                      onClick={() => exportApplicationsToExcel(applications)}
-                      className="flex items-center justify-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-gray-600 transition-colors hover:bg-gray-50"
-                    >
-                      <Download size={18} />
-                      {t('actions.export')}
-                    </button>
-                  </div>
-                </div>
+                  <section className="rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-sm">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
+                      <div className="relative flex-1">
+                        <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                        <input
+                          type="text"
+                          placeholder={t('search.placeholder')}
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          className="w-full rounded-lg border border-gray-200 px-4 py-2 pl-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div className="flex shrink-0 flex-col gap-3 sm:flex-row">
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept=".xlsx,.xls,.csv"
+                          onChange={handleImport}
+                          className="hidden"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={isImporting}
+                          className="flex items-center justify-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <Upload size={18} />
+                          {isImporting ? t('actions.importing') : t('actions.import')}
+                        </button>
+                        <button
+                          onClick={() => exportApplicationsToExcel(applications)}
+                          className="flex items-center justify-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-gray-600 transition-colors hover:bg-gray-50"
+                        >
+                          <Download size={18} />
+                          {t('actions.export')}
+                        </button>
+                      </div>
+                    </div>
 
-                <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-                  <div>
-                    <label className="mb-1 block text-sm font-medium text-gray-700">{t('filters.statusLabel')}</label>
-                    <div className="relative">
-                      <Filter className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                      <select
-                        value={filters.statut}
-                        onChange={(e) => setFilters((prev) => ({ ...prev, statut: e.target.value }))}
-                        className="w-full rounded-lg border border-gray-200 px-4 py-2 pl-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="">{t('filters.statusAll')}</option>
-                        {STATUS_OPTIONS.map((status) => (
-                          <option key={status} value={status}>
-                            {translateStatus(status)}
-                          </option>
-                        ))}
-                      </select>
+                    <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                      <div>
+                        <label className="mb-1 block text-sm font-medium text-gray-700">{t('filters.statusLabel')}</label>
+                        <div className="relative">
+                          <Filter className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                          <select
+                            value={filters.statut}
+                            onChange={(e) => setFilters((prev) => ({ ...prev, statut: e.target.value }))}
+                            className="w-full rounded-lg border border-gray-200 px-4 py-2 pl-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          >
+                            <option value="">{t('filters.statusAll')}</option>
+                            {STATUS_OPTIONS.map((status) => (
+                              <option key={status} value={status}>
+                                {translateStatus(status)}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-sm font-medium text-gray-700">{t('filters.priorityLabel')}</label>
+                        <div className="relative">
+                          <Filter className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                          <select
+                            value={filters.priorite}
+                            onChange={(e) => setFilters((prev) => ({ ...prev, priorite: e.target.value }))}
+                            className="w-full rounded-lg border border-gray-200 px-4 py-2 pl-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          >
+                            <option value="">{t('filters.priorityAll')}</option>
+                            {PRIORITY_OPTIONS.map((priority) => (
+                              <option key={priority} value={priority}>
+                                {translatePriority(priority)}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-sm font-medium text-gray-700">{t('filters.typeLabel')}</label>
+                        <div className="relative">
+                          <Filter className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                          <select
+                            value={filters.type}
+                            onChange={(e) => setFilters((prev) => ({ ...prev, type: e.target.value }))}
+                            className="w-full rounded-lg border border-gray-200 px-4 py-2 pl-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          >
+                            <option value="">{t('filters.typeAll')}</option>
+                            {TYPE_OPTIONS.map((type) => (
+                              <option key={type} value={type}>
+                                {translateType(type)}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                      <div className="flex items-end">
+                        <button
+                          onClick={() => {
+                            setFilters({ statut: '', priorite: '', type: '' });
+                            setSearchTerm('');
+                          }}
+                          className="w-full rounded-lg border border-gray-200 px-4 py-2 text-gray-600 transition-colors hover:bg-gray-50"
+                        >
+                          {t('actions.resetFilters')}
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-sm font-medium text-gray-700">{t('filters.priorityLabel')}</label>
-                    <div className="relative">
-                      <Filter className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                      <select
-                        value={filters.priorite}
-                        onChange={(e) => setFilters((prev) => ({ ...prev, priorite: e.target.value }))}
-                        className="w-full rounded-lg border border-gray-200 px-4 py-2 pl-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="">{t('filters.priorityAll')}</option>
-                        {PRIORITY_OPTIONS.map((priority) => (
-                          <option key={priority} value={priority}>
-                            {translatePriority(priority)}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-sm font-medium text-gray-700">{t('filters.typeLabel')}</label>
-                    <div className="relative">
-                      <Filter className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                      <select
-                        value={filters.type}
-                        onChange={(e) => setFilters((prev) => ({ ...prev, type: e.target.value }))}
-                        className="w-full rounded-lg border border-gray-200 px-4 py-2 pl-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="">{t('filters.typeAll')}</option>
-                        {TYPE_OPTIONS.map((type) => (
-                          <option key={type} value={type}>
-                            {translateType(type)}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                  <div className="flex items-end">
-                    <button
-                      onClick={() => {
-                        setFilters({ statut: '', priorite: '', type: '' });
-                        setSearchTerm('');
-                      }}
-                      className="w-full rounded-lg border border-gray-200 px-4 py-2 text-gray-600 transition-colors hover:bg-gray-50"
-                    >
-                      {t('actions.resetFilters')}
-                    </button>
-                  </div>
-                </div>
-              </section>
+                  </section>
 
-              <section className="rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-sm">
-                <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white/95">
-                  <table className="min-w-full">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          {t('table.headers.company')}
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          {t('table.headers.position')}
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          {t('table.headers.status')}
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          {t('table.headers.priority')}
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          {t('table.headers.nextAction')}
-                        </th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          {t('table.headers.actions')}
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {paginatedApplications.map((application) => (
-                        <tr key={application.id} className={getStatusRowColor(application.statut)}>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm font-medium text-gray-900">{application.entreprise}</div>
-                            <div className="text-sm text-gray-500">{application.localisation}</div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-900">{application.poste}</div>
-                            <div className="text-sm text-gray-500">{translateType(application.type)}</div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(application.statut, application.prochaineAction)}`}>
-                              {translateStatus(application.statut)}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {translatePriority(application.priorite)}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {application.prochaineAction || '—'}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <div className="flex justify-end gap-2">
-                              <button
-                                onClick={() => handleEdit(application)}
-                                className="text-blue-600 hover:text-blue-900"
-                                aria-label={t('actions.editApplication')}
-                              >
-                                <Edit size={18} />
-                              </button>
-                              <button
-                                onClick={() => handleDelete(application)}
-                                className="text-red-600 hover:text-red-900"
-                                aria-label={t('actions.deleteApplication')}
-                              >
-                                <Trash2 size={18} />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  <section className="rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-sm">
+                    <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white/95">
+                      <table className="min-w-full">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              {t('table.headers.company')}
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              {t('table.headers.position')}
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              {t('table.headers.status')}
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              {t('table.headers.priority')}
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              {t('table.headers.nextAction')}
+                            </th>
+                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              {t('table.headers.actions')}
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                          {paginatedApplications.map((application) => (
+                            <tr key={application.id} className={getStatusRowColor(application.statut)}>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm font-medium text-gray-900">{application.entreprise}</div>
+                                <div className="text-sm text-gray-500">{application.localisation}</div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-900">{application.poste}</div>
+                                <div className="text-sm text-gray-500">{translateType(application.type)}</div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(application.statut, application.prochaineAction)}`}>
+                                  {translateStatus(application.statut)}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {translatePriority(application.priorite)}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {application.prochaineAction || '—'}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                <div className="flex justify-end gap-2">
+                                  <button
+                                    onClick={() => handleEdit(application)}
+                                    className="text-blue-600 hover:text-blue-900"
+                                    aria-label={t('actions.editApplication')}
+                                  >
+                                    <Edit size={18} />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDelete(application)}
+                                    className="text-red-600 hover:text-red-900"
+                                    aria-label={t('actions.deleteApplication')}
+                                  >
+                                    <Trash2 size={18} />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
 
-                  {filteredApplications.length === 0 && (
-                    <div className="p-8 text-center text-gray-500">
-                      {t('table.emptyState')}
+                      {filteredApplications.length === 0 && (
+                        <div className="p-8 text-center text-gray-500">
+                          {t('table.emptyState')}
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
 
-                {filteredApplications.length > 0 && (
-                  <div className="mt-6 flex items-center justify-between">
-                    <p className="text-sm text-gray-600">
-                      {t('pagination.pageIndicator', { current: currentPage, total: totalPages })}
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setCurrentPage(1)}
-                        disabled={currentPage === 1}
-                        className="rounded border border-gray-200 p-2 text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-                        aria-label={t('pagination.first')}
-                      >
-                        <ChevronsLeft size={16} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-                        disabled={currentPage === 1}
-                        className="rounded border border-gray-200 p-2 text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-                        aria-label={t('pagination.previous')}
-                      >
-                        <ChevronLeft size={16} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-                        disabled={currentPage === totalPages}
-                        className="rounded border border-gray-200 p-2 text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-                        aria-label={t('pagination.next')}
-                      >
-                        <ChevronRight size={16} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setCurrentPage(totalPages)}
-                        disabled={currentPage === totalPages}
-                        className="rounded border border-gray-200 p-2 text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-                        aria-label={t('pagination.last')}
-                      >
-                        <ChevronsRight size={16} />
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </section>
+                    {filteredApplications.length > 0 && (
+                      <div className="mt-6 flex items-center justify-between">
+                        <p className="text-sm text-gray-600">
+                          {t('pagination.pageIndicator', { current: currentPage, total: totalPages })}
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setCurrentPage(1)}
+                            disabled={currentPage === 1}
+                            className="rounded border border-gray-200 p-2 text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                            aria-label={t('pagination.first')}
+                          >
+                            <ChevronsLeft size={16} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                            disabled={currentPage === 1}
+                            className="rounded border border-gray-200 p-2 text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                            aria-label={t('pagination.previous')}
+                          >
+                            <ChevronLeft size={16} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                            disabled={currentPage === totalPages}
+                            className="rounded border border-gray-200 p-2 text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                            aria-label={t('pagination.next')}
+                          >
+                            <ChevronRight size={16} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setCurrentPage(totalPages)}
+                            disabled={currentPage === totalPages}
+                            className="rounded border border-gray-200 p-2 text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                            aria-label={t('pagination.last')}
+                          >
+                            <ChevronsRight size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </section>
+                </>
+              ) : (
+                <AnalyticsDashboard data={analyticsData} />
+              )}
             </div>
           </div>
         </div>
