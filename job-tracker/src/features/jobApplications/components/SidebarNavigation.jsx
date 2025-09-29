@@ -37,7 +37,7 @@ const SidebarNavigation = ({ activeKey, onSelect }) => {
   const { t } = useLanguage();
 
   return (
-    <aside className="hidden min-h-screen w-24 shrink-0 items-center justify-center bg-transparent lg:flex">
+    <aside className="hidden w-24 shrink-0 items-center justify-center bg-transparent lg:flex lg:sticky lg:top-0 lg:h-screen">
       <div className="flex flex-col items-center gap-4 rounded-full bg-white/70 p-4 shadow-xl shadow-blue-500/5 ring-1 ring-slate-200/80 backdrop-blur">
         {NAV_ITEMS.map(({ key, icon }) => (
           <TooltipNavButton
