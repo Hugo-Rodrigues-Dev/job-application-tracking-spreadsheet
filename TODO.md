@@ -9,6 +9,8 @@
 - [ ] Added a mobile-friendly responsive design or a dedicated mobile app.
 - [ ] Added a page for managing and storing resumes and cover letters.
 - [ ] Implement CI/CD for automated testing and deployment.
+- [ ] Added integration with job boards (LinkedIn, Indeed, etc.) to import applications directly.
+- [ ] Added a calendar view to visualize application timelines and deadlines.
 - [ ] Introduce an archive workflow with a dedicated page and quick archive action.
 - [ ] Implementation of an AI assistant to help with job searches.
 - [ ] Implementation of an AI assistant to optimize the resume based on the desired position and user experiences.
