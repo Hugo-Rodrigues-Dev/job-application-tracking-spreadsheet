@@ -85,6 +85,7 @@ export const translations = {
       resetFilters: 'Réinitialiser',
       editApplication: 'Modifier la candidature',
       deleteApplication: 'Supprimer la candidature',
+      openFavoritesBoard: 'Classer mes favoris',
     },
     filters: {
       statusLabel: 'Statut',
@@ -104,6 +105,13 @@ export const translations = {
         actions: 'Actions',
       },
       emptyState: 'Aucune candidature ne correspond à vos filtres pour le moment.',
+    },
+    favoritesBoard: {
+      title: 'Mes candidatures favorites',
+      subtitle: 'Classez vos candidatures par ordre de préférence pour suivre vos priorités.',
+      empty: 'Ajoutez des candidatures pour définir vos favoris.',
+      backToList: 'Retour à la liste',
+      orderLabel: 'Position',
     },
     pagination: {
       pageIndicator: 'Page {current} sur {total}',
@@ -298,6 +306,7 @@ export const translations = {
       resetFilters: 'Reset',
       editApplication: 'Edit application',
       deleteApplication: 'Delete application',
+      openFavoritesBoard: 'Rank favourites',
     },
     filters: {
       statusLabel: 'Status',
@@ -317,6 +326,13 @@ export const translations = {
         actions: 'Actions',
       },
       emptyState: 'No applications match your filters yet.',
+    },
+    favoritesBoard: {
+      title: 'Favourite ranking',
+      subtitle: 'Drag and drop applications to keep your favourites in order.',
+      empty: 'Add applications to build your favourites list.',
+      backToList: 'Back to list',
+      orderLabel: 'Position',
     },
     pagination: {
       pageIndicator: 'Page {current} of {total}',
