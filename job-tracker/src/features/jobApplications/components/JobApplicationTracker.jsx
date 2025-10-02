@@ -1,5 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Plus, Filter, Search, Download, Upload, Edit, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import {
+  Plus,
+  Filter,
+  Search,
+  Download,
+  Upload,
+  Edit,
+  Trash2,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+} from 'lucide-react';
 import { INITIAL_APPLICATIONS } from '../data/initialApplications';
 import { STATUS_OPTIONS, TYPE_OPTIONS, PRIORITY_OPTIONS } from '../constants/options';
 import { getStatusColor, getStatusRowColor } from '../utils/styleTokens';
@@ -10,6 +22,7 @@ import Dialog from './Dialog';
 import LanguageToggle from './LanguageToggle';
 import SidebarNavigation, { MobileNavigation } from './SidebarNavigation';
 import AnalyticsDashboard from './AnalyticsDashboard';
+import FavoritesOrderingBoard from './FavoritesOrderingBoard';
 import { useLanguage } from '../i18n/LanguageProvider';
 
 const STATUS_MIGRATIONS = {
@@ -43,6 +56,12 @@ const normalizeApplications = (applications) =>
     ? applications.map((app) => ({
         ...app,
         statut: normalizeStatus(app.statut),
+        favoriteRank:
+          typeof app.favoriteRank === 'number'
+            ? app.favoriteRank
+            : typeof app.preferenceRank === 'number'
+              ? app.preferenceRank
+              : null,
       }))
     : [];
 
@@ -58,23 +77,56 @@ const createEmptyFormData = () => ({
   prochaineAction: '',
   priorite: 'Moyenne',
   notes: '',
+  favoriteRank: null,
 });
+
+const ensureFavoriteRanks = (applications) => {
+  if (!Array.isArray(applications)) return [];
+
+  const rankedIds = [...applications]
+    .map((app) => ({
+      id: app.id,
+      rank: typeof app.favoriteRank === 'number' ? app.favoriteRank : Number.MAX_SAFE_INTEGER,
+    }))
+    .sort((a, b) => {
+      if (a.rank !== b.rank) return a.rank - b.rank;
+      return String(a.id).localeCompare(String(b.id));
+    })
+    .map((entry, index) => [String(entry.id), index]);
+
+  const rankMap = new Map(rankedIds);
+  let nextRank = rankMap.size;
+
+  return applications.map((app) => {
+    const key = String(app.id);
+    if (rankMap.has(key)) {
+      return { ...app, favoriteRank: rankMap.get(key) };
+    }
+
+    const assignedRank = nextRank;
+    nextRank += 1;
+    return { ...app, favoriteRank: assignedRank };
+  });
+};
 
 const JobApplicationTracker = () => {
   const { t, translateStatus, translatePriority, translateType, language } = useLanguage();
   const [applications, setApplications] = useState(() => {
     const storedApplications = loadApplications();
     if (storedApplications && Array.isArray(storedApplications)) {
-      const normalized = sortApplications(normalizeApplications(storedApplications));
+      const normalized = ensureFavoriteRanks(sortApplications(normalizeApplications(storedApplications)));
       saveApplications(normalized);
       return normalized;
     }
 
-    const seededApplications = sortApplications(normalizeApplications(INITIAL_APPLICATIONS));
+    const seededApplications = ensureFavoriteRanks(
+      sortApplications(normalizeApplications(INITIAL_APPLICATIONS)),
+    );
     saveApplications(seededApplications);
     return seededApplications;
   });
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeView, setActiveView] = useState('table');
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [filters, setFilters] = useState({ statut: '', priorite: '', type: '' });
@@ -85,6 +137,12 @@ const JobApplicationTracker = () => {
   const [isImporting, setIsImporting] = useState(false);
   const [dialog, setDialog] = useState(null);
   const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    if (activeTab !== 'dashboard') {
+      setActiveView('table');
+    }
+  }, [activeTab]);
 
   const closeDialog = useCallback(() => setDialog(null), []);
 
@@ -127,23 +185,90 @@ const JobApplicationTracker = () => {
     return JSON.stringify(formData) !== JSON.stringify(initialFormSnapshot);
   }, [formData, initialFormSnapshot]);
 
+  const isFavoritesBoard = activeView === 'favoritesBoard';
+
+  useEffect(() => {
+    if (isFavoritesBoard && applications.length === 0) {
+      setActiveView('table');
+    }
+  }, [isFavoritesBoard, applications.length]);
+
   const persistApplications = useCallback((updater) => {
     setApplications((prev) => {
       const next = typeof updater === 'function' ? updater(prev) : updater;
       if (!Array.isArray(next)) return prev;
       const normalized = sortApplications(normalizeApplications(next));
-      saveApplications(normalized);
-      return normalized;
+      const ranked = ensureFavoriteRanks(normalized);
+      saveApplications(ranked);
+      return ranked;
     });
   }, []);
+
+  const handleFavoritesReorder = useCallback(
+    (orderedIds) => {
+      if (!Array.isArray(orderedIds)) return;
+
+      persistApplications((prev) => {
+        const existing = Array.isArray(prev) ? prev : [];
+        const idToRank = new Map(orderedIds.map((id, index) => [String(id), index]));
+
+        return existing.map((app) => {
+          const mappedRank = idToRank.get(String(app.id));
+          if (typeof mappedRank === 'number') {
+            return { ...app, favoriteRank: mappedRank };
+          }
+
+          return {
+            ...app,
+            favoriteRank: typeof app.favoriteRank === 'number' ? app.favoriteRank : null,
+          };
+        });
+      });
+    },
+    [persistApplications],
+  );
+
+  const favoritesOrderedApplications = useMemo(() => {
+    if (!Array.isArray(applications)) return [];
+
+    return [...applications]
+      .map((app) => ({
+        ...app,
+        favoriteRank: typeof app.favoriteRank === 'number' ? app.favoriteRank : Number.MAX_SAFE_INTEGER,
+      }))
+      .sort((a, b) => {
+        if (a.favoriteRank !== b.favoriteRank) return a.favoriteRank - b.favoriteRank;
+        return (a.entreprise || '').localeCompare(b.entreprise || '', undefined, { sensitivity: 'base' });
+      })
+      .map((app, index) => ({
+        ...app,
+        favoriteRank: index,
+      }));
+  }, [applications]);
+
+  const handleOpenFavoritesBoard = useCallback(() => setActiveView('favoritesBoard'), []);
+  const handleCloseFavoritesBoard = useCallback(() => setActiveView('table'), []);
 
   const executeSave = useCallback(() => {
     if (editingId) {
       persistApplications((prev) =>
-        prev.map((app) => (app.id === editingId ? { ...formData, id: editingId } : app)),
+        prev.map((app) =>
+          app.id === editingId
+            ? { ...formData, id: editingId, favoriteRank: app.favoriteRank }
+            : app,
+        ),
       );
     } else {
-      persistApplications((prev) => [...prev, { ...formData, id: Date.now() }]);
+      persistApplications((prev) => {
+        const existing = Array.isArray(prev) ? prev : [];
+        const nextRank =
+          existing.reduce(
+            (max, app) => (typeof app.favoriteRank === 'number' ? Math.max(max, app.favoriteRank) : max),
+            -1,
+          ) + 1;
+
+        return [...existing, { ...formData, id: Date.now(), favoriteRank: nextRank }];
+      });
     }
     closeForm();
   }, [editingId, formData, persistApplications, closeForm]);
@@ -156,11 +281,28 @@ const JobApplicationTracker = () => {
       const { skippedEmpty = 0, skippedMissingFields = 0 } = summary;
 
       if (mode === 'replace') {
-        persistApplications(importedApplications);
+        const rankedApplications = importedApplications.map((app, index) => ({
+          ...app,
+          favoriteRank:
+            typeof app.favoriteRank === 'number' ? app.favoriteRank : index,
+        }));
+        persistApplications(rankedApplications);
       } else {
         persistApplications((prev) => {
           const existing = Array.isArray(prev) ? prev : [];
-          return [...existing, ...importedApplications];
+          const startRank =
+            existing.reduce(
+              (max, app) => (typeof app.favoriteRank === 'number' ? Math.max(max, app.favoriteRank) : max),
+              -1,
+            ) + 1;
+
+          const rankedApplications = importedApplications.map((app, index) => ({
+            ...app,
+            favoriteRank:
+              typeof app.favoriteRank === 'number' ? app.favoriteRank : startRank + index,
+          }));
+
+          return [...existing, ...rankedApplications];
         });
       }
 
@@ -656,46 +798,59 @@ const JobApplicationTracker = () => {
                     </div>
                   </section>
 
-                  <section className="rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-sm">
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
-                      <div className="relative flex-1">
-                        <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                        <input
-                          type="text"
-                          placeholder={t('search.placeholder')}
-                          value={searchTerm}
-                          onChange={(e) => setSearchTerm(e.target.value)}
-                          className="w-full rounded-lg border border-gray-200 px-4 py-2 pl-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                      </div>
-                      <div className="flex shrink-0 flex-col gap-3 sm:flex-row">
-                        <input
-                          ref={fileInputRef}
-                          type="file"
-                          accept=".xlsx,.xls,.csv"
-                          onChange={handleImport}
-                          className="hidden"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => fileInputRef.current?.click()}
-                          disabled={isImporting}
-                          className="flex items-center justify-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          <Upload size={18} />
-                          {isImporting ? t('actions.importing') : t('actions.import')}
-                        </button>
-                        <button
-                          onClick={() => exportApplicationsToExcel(applications)}
-                          className="flex items-center justify-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-gray-600 transition-colors hover:bg-gray-50"
-                        >
-                          <Download size={18} />
-                          {t('actions.export')}
-                        </button>
-                      </div>
-                    </div>
+                  {isFavoritesBoard ? (
+                    <section className="rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-sm">
+                      <FavoritesOrderingBoard
+                        applications={favoritesOrderedApplications}
+                        onBack={handleCloseFavoritesBoard}
+                        onReorder={handleFavoritesReorder}
+                        translateStatus={translateStatus}
+                        translateType={translateType}
+                        t={t}
+                      />
+                    </section>
+                  ) : (
+                    <>
+                      <section className="rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-sm">
+                        <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
+                          <div className="relative flex-1">
+                            <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                            <input
+                              type="text"
+                              placeholder={t('search.placeholder')}
+                              value={searchTerm}
+                              onChange={(e) => setSearchTerm(e.target.value)}
+                              className="w-full rounded-lg border border-gray-200 px-4 py-2 pl-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                          <div className="flex shrink-0 flex-col gap-3 sm:flex-row">
+                            <input
+                              ref={fileInputRef}
+                              type="file"
+                              accept=".xlsx,.xls,.csv"
+                              onChange={handleImport}
+                              className="hidden"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => fileInputRef.current?.click()}
+                              disabled={isImporting}
+                              className="flex items-center justify-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              <Upload size={18} />
+                              {isImporting ? t('actions.importing') : t('actions.import')}
+                            </button>
+                            <button
+                              onClick={() => exportApplicationsToExcel(applications)}
+                              className="flex items-center justify-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-gray-600 transition-colors hover:bg-gray-50"
+                            >
+                              <Download size={18} />
+                              {t('actions.export')}
+                            </button>
+                          </div>
+                        </div>
 
-                    <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
                       <div>
                         <label className="mb-1 block text-sm font-medium text-gray-700">{t('filters.statusLabel')}</label>
                         <div className="relative">
@@ -715,39 +870,21 @@ const JobApplicationTracker = () => {
                         </div>
                       </div>
                       <div>
-                        <label className="mb-1 block text-sm font-medium text-gray-700">{t('filters.priorityLabel')}</label>
-                        <div className="relative">
-                          <Filter className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                          <select
-                            value={filters.priorite}
-                            onChange={(e) => setFilters((prev) => ({ ...prev, priorite: e.target.value }))}
-                            className="w-full rounded-lg border border-gray-200 px-4 py-2 pl-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          >
-                            <option value="">{t('filters.priorityAll')}</option>
-                            {PRIORITY_OPTIONS.map((priority) => (
-                              <option key={priority} value={priority}>
-                                {translatePriority(priority)}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
-                      <div>
                         <label className="mb-1 block text-sm font-medium text-gray-700">{t('filters.typeLabel')}</label>
                         <div className="relative">
                           <Filter className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                           <select
                             value={filters.type}
                             onChange={(e) => setFilters((prev) => ({ ...prev, type: e.target.value }))}
-                            className="w-full rounded-lg border border-gray-200 px-4 py-2 pl-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          >
-                            <option value="">{t('filters.typeAll')}</option>
-                            {TYPE_OPTIONS.map((type) => (
-                              <option key={type} value={type}>
-                                {translateType(type)}
-                              </option>
-                            ))}
-                          </select>
+                                className="w-full rounded-lg border border-gray-200 px-4 py-2 pl-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              >
+                                <option value="">{t('filters.typeAll')}</option>
+                                {TYPE_OPTIONS.map((type) => (
+                                  <option key={type} value={type}>
+                                    {translateType(type)}
+                                  </option>
+                                ))}
+                              </select>
                         </div>
                       </div>
                       <div className="flex items-end">
@@ -767,126 +904,131 @@ const JobApplicationTracker = () => {
                   <section className="rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-sm">
                     <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white/95">
                       <table className="min-w-full">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              {t('table.headers.company')}
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              {t('table.headers.position')}
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              {t('table.headers.status')}
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              {t('table.headers.priority')}
-                            </th>
+                            <thead className="bg-gray-50">
+                              <tr>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                  {t('table.headers.company')}
+                                </th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                  {t('table.headers.position')}
+                                </th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                  {t('table.headers.status')}
+                                </th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                               {t('table.headers.nextAction')}
                             </th>
-                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              {t('table.headers.actions')}
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200">
-                          {paginatedApplications.map((application) => (
-                            <tr key={application.id} className={getStatusRowColor(application.statut)}>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm font-medium text-gray-900">{application.entreprise}</div>
-                                <div className="text-sm text-gray-500">{application.localisation}</div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm text-gray-900">{application.poste}</div>
-                                <div className="text-sm text-gray-500">{translateType(application.type)}</div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(application.statut, application.prochaineAction)}`}>
-                                  {translateStatus(application.statut)}
-                                </span>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {translatePriority(application.priorite)}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {application.prochaineAction || '—'}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                <div className="flex justify-end gap-2">
-                                  <button
-                                    onClick={() => handleEdit(application)}
-                                    className="text-blue-600 hover:text-blue-900"
-                                    aria-label={t('actions.editApplication')}
-                                  >
-                                    <Edit size={18} />
-                                  </button>
-                                  <button
-                                    onClick={() => handleDelete(application)}
-                                    className="text-red-600 hover:text-red-900"
-                                    aria-label={t('actions.deleteApplication')}
-                                  >
-                                    <Trash2 size={18} />
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                  {t('table.headers.actions')}
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-200">
+                              {paginatedApplications.map((application) => (
+                                <tr key={application.id} className={getStatusRowColor(application.statut)}>
+                                  <td className="px-6 py-4 whitespace-nowrap">
+                                    <div className="text-sm font-medium text-gray-900">{application.entreprise}</div>
+                                    <div className="text-sm text-gray-500">{application.localisation}</div>
+                                  </td>
+                                  <td className="px-6 py-4 whitespace-nowrap">
+                                    <div className="text-sm text-gray-900">{application.poste}</div>
+                                    <div className="text-sm text-gray-500">{translateType(application.type)}</div>
+                                  </td>
+                                  <td className="px-6 py-4 whitespace-nowrap">
+                                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(application.statut, application.prochaineAction)}`}>
+                                      {translateStatus(application.statut)}
+                                    </span>
+                                  </td>
+                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {application.prochaineAction || '—'}
+                                  </td>
+                                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                    <div className="flex justify-end gap-2">
+                                      <button
+                                        onClick={() => handleEdit(application)}
+                                        className="text-blue-600 hover:text-blue-900"
+                                        aria-label={t('actions.editApplication')}
+                                      >
+                                        <Edit size={18} />
+                                      </button>
+                                      <button
+                                        onClick={() => handleDelete(application)}
+                                        className="text-red-600 hover:text-red-900"
+                                        aria-label={t('actions.deleteApplication')}
+                                      >
+                                        <Trash2 size={18} />
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
 
-                      {filteredApplications.length === 0 && (
-                        <div className="p-8 text-center text-gray-500">
-                          {t('table.emptyState')}
+                          {filteredApplications.length === 0 && (
+                            <div className="p-8 text-center text-gray-500">
+                              {t('table.emptyState')}
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
 
-                    {filteredApplications.length > 0 && (
-                      <div className="mt-6 flex items-center justify-between">
-                        <p className="text-sm text-gray-600">
-                          {t('pagination.pageIndicator', { current: currentPage, total: totalPages })}
-                        </p>
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setCurrentPage(1)}
-                            disabled={currentPage === 1}
-                            className="rounded border border-gray-200 p-2 text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-                            aria-label={t('pagination.first')}
-                          >
-                            <ChevronsLeft size={16} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-                            disabled={currentPage === 1}
-                            className="rounded border border-gray-200 p-2 text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-                            aria-label={t('pagination.previous')}
-                          >
-                            <ChevronLeft size={16} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-                            disabled={currentPage === totalPages}
-                            className="rounded border border-gray-200 p-2 text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-                            aria-label={t('pagination.next')}
-                          >
-                            <ChevronRight size={16} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setCurrentPage(totalPages)}
-                            disabled={currentPage === totalPages}
-                            className="rounded border border-gray-200 p-2 text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-                            aria-label={t('pagination.last')}
-                          >
-                            <ChevronsRight size={16} />
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </section>
+                        {filteredApplications.length > 0 && (
+                          <div className="mt-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                            <p className="text-sm text-gray-600">
+                              {t('pagination.pageIndicator', { current: currentPage, total: totalPages })}
+                            </p>
+                            <div className="flex items-center gap-3">
+                              <button
+                                type="button"
+                                onClick={handleOpenFavoritesBoard}
+                                className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                              >
+                                {t('actions.openFavoritesBoard')}
+                              </button>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setCurrentPage(1)}
+                                  disabled={currentPage === 1}
+                                  className="rounded border border-gray-200 p-2 text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                  aria-label={t('pagination.first')}
+                                >
+                                  <ChevronsLeft size={16} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                                  disabled={currentPage === 1}
+                                  className="rounded border border-gray-200 p-2 text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                  aria-label={t('pagination.previous')}
+                                >
+                                  <ChevronLeft size={16} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                                  disabled={currentPage === totalPages}
+                                  className="rounded border border-gray-200 p-2 text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                  aria-label={t('pagination.next')}
+                                >
+                                  <ChevronRight size={16} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setCurrentPage(totalPages)}
+                                  disabled={currentPage === totalPages}
+                                  className="rounded border border-gray-200 p-2 text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                  aria-label={t('pagination.last')}
+                                >
+                                  <ChevronsRight size={16} />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </section>
+                    </>
+                  )}
                 </>
               ) : (
                 <AnalyticsDashboard data={analyticsData} />
