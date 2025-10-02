@@ -3,7 +3,6 @@
 ## To Do
 - [ ] Replace localStorage with a proper database to store applications securely.
 - [ ] Added secure user authentication and account management to allow data sync across devices.
-- [ ] Added a page to list the desired positions in order of preference and always know which one to prioritize
 - [ ] Design reminder/notification system for follow-ups.
 - [ ] Added user settings for customizing the dashboard view (dark mode, ...).
 - [ ] Added a mobile-friendly responsive design or a dedicated mobile app.
@@ -18,6 +17,7 @@
 - [ ] Implement calendar integration to visualize application deadlines and interviews.
 
 ## Done
+- [x] Added a page to list the desired positions in order of preference and always know which one to prioritize
 - [x] Added analytics dashboard with charts to visualize application statistics.
 - [x] Added sidebar navigation for different views (dashboard, settings, ...).
 - [x] Added multilingual support (switch between French and English UI labels).
