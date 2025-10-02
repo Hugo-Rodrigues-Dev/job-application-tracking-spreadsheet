@@ -12,6 +12,7 @@ export const INITIAL_APPLICATIONS = [
     prochaineAction: 'Work',
     priorite: 'Haute',
     notes: 'Interesting company, great team and projects',
+    favoriteRank: 0,
   },
   {
     id: 2,
@@ -26,5 +27,6 @@ export const INITIAL_APPLICATIONS = [
     prochaineAction: 'Have a news from them',
     priorite: 'Moyenne',
     notes: 'Company focused on domotic and IoT',
+    favoriteRank: 1,
   },
 ];
