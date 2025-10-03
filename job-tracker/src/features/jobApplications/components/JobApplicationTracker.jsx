@@ -13,7 +13,7 @@ import {
   ChevronsRight,
 } from 'lucide-react';
 import { INITIAL_APPLICATIONS } from '../data/initialApplications';
-import { STATUS_OPTIONS, TYPE_OPTIONS, PRIORITY_OPTIONS } from '../constants/options';
+import { STATUS_OPTIONS, TYPE_OPTIONS } from '../constants/options';
 import { getStatusColor, getStatusRowColor } from '../utils/styleTokens';
 import { loadApplications, saveApplications } from '../utils/storage';
 import { exportApplicationsToExcel } from '../utils/export';
@@ -75,7 +75,6 @@ const createEmptyFormData = () => ({
   dateEnvoi: new Date().toISOString().split('T')[0],
   statut: 'A Envoyer',
   prochaineAction: '',
-  priorite: 'Moyenne',
   notes: '',
   favoriteRank: null,
 });
@@ -110,7 +109,7 @@ const ensureFavoriteRanks = (applications) => {
 };
 
 const JobApplicationTracker = () => {
-  const { t, translateStatus, translatePriority, translateType, language } = useLanguage();
+  const { t, translateStatus, translateType, language } = useLanguage();
   const [applications, setApplications] = useState(() => {
     const storedApplications = loadApplications();
     if (storedApplications && Array.isArray(storedApplications)) {
@@ -129,7 +128,7 @@ const JobApplicationTracker = () => {
   const [activeView, setActiveView] = useState('table');
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const [filters, setFilters] = useState({ statut: '', priorite: '', type: '' });
+  const [filters, setFilters] = useState({ statut: '', type: '' });
   const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState(createEmptyFormData);
   const [initialFormSnapshot, setInitialFormSnapshot] = useState(createEmptyFormData);
@@ -364,7 +363,6 @@ const JobApplicationTracker = () => {
           id: timestamp + index,
           type: app.type || defaults.type,
           statut: app.statut || defaults.statut,
-          priorite: app.priorite || defaults.priorite,
           dateEnvoi: app.dateEnvoi || defaults.dateEnvoi,
         };
       });
@@ -525,10 +523,9 @@ const JobApplicationTracker = () => {
         app.localisation.toLowerCase().includes(searchTerm.toLowerCase());
 
       const matchesStatus = !filters.statut || app.statut === filters.statut;
-      const matchesPriority = !filters.priorite || app.priorite === filters.priorite;
       const matchesType = !filters.type || app.type === filters.type;
 
-      return matchesSearch && matchesStatus && matchesPriority && matchesType;
+      return matchesSearch && matchesStatus && matchesType;
     });
   }, [applications, filters, searchTerm]);
 
@@ -541,14 +538,10 @@ const JobApplicationTracker = () => {
 
   const analyticsData = useMemo(() => {
     const statusCounts = {};
-    const priorityCounts = {};
     const typeCounts = {};
 
     STATUS_ORDER.forEach((status) => {
       statusCounts[status] = 0;
-    });
-    PRIORITY_OPTIONS.forEach((priority) => {
-      priorityCounts[priority] = 0;
     });
     TYPE_OPTIONS.forEach((type) => {
       typeCounts[type] = 0;
@@ -581,10 +574,6 @@ const JobApplicationTracker = () => {
     applications.forEach((application) => {
       const normalizedStatus = normalizeStatus(application.statut);
       statusCounts[normalizedStatus] = (statusCounts[normalizedStatus] ?? 0) + 1;
-
-      if (application.priorite) {
-        priorityCounts[application.priorite] = (priorityCounts[application.priorite] ?? 0) + 1;
-      }
 
       if (application.type) {
         typeCounts[application.type] = (typeCounts[application.type] ?? 0) + 1;
@@ -626,22 +615,6 @@ const JobApplicationTracker = () => {
           value,
         })),
     ].filter((entry) => entry.value > 0 || knownStatuses.has(entry.key));
-
-    const knownPriorities = new Set(PRIORITY_OPTIONS);
-    const priorityDistribution = [
-      ...PRIORITY_OPTIONS.map((priority) => ({
-        key: priority,
-        label: translatePriority(priority),
-        value: priorityCounts[priority] ?? 0,
-      })),
-      ...Object.entries(priorityCounts)
-        .filter(([priority]) => !knownPriorities.has(priority))
-        .map(([priority, value]) => ({
-          key: priority,
-          label: translatePriority(priority),
-          value,
-        })),
-    ];
 
     const knownTypes = new Set(TYPE_OPTIONS);
     const typeDistribution = [
@@ -707,14 +680,13 @@ const JobApplicationTracker = () => {
         accepted,
       },
       statusDistribution,
-      priorityDistribution,
       typeDistribution,
       timeline: {
         daily: dailyTimeline,
         weekly: weeklyTimeline,
       },
     };
-  }, [applications, language, t, translatePriority, translateStatus, translateType]);
+  }, [applications, language, t, translateStatus, translateType]);
 
   const handleNavigationSelect = useCallback(
     (key) => {
@@ -890,7 +862,7 @@ const JobApplicationTracker = () => {
                       <div className="flex items-end">
                         <button
                           onClick={() => {
-                            setFilters({ statut: '', priorite: '', type: '' });
+                            setFilters({ statut: '', type: '' });
                             setSearchTerm('');
                           }}
                           className="w-full rounded-lg border border-gray-200 px-4 py-2 text-gray-600 transition-colors hover:bg-gray-50"
@@ -1123,7 +1095,7 @@ const JobApplicationTracker = () => {
               ))}
             </select>
           </div>
-          <div>
+          <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-1">{t('form.labels.nextAction')}</label>
             <input
               type="text"
@@ -1132,20 +1104,6 @@ const JobApplicationTracker = () => {
               className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder={t('form.placeholders.nextAction')}
             />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">{t('form.labels.priority')}</label>
-            <select
-              value={formData.priorite}
-              onChange={(e) => setFormData({ ...formData, priorite: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              {PRIORITY_OPTIONS.map((priority) => (
-                <option key={priority} value={priority}>
-                  {translatePriority(priority)}
-                </option>
-              ))}
-            </select>
           </div>
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-1">{t('form.labels.link')}</label>
