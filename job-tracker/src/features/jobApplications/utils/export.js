@@ -7,7 +7,6 @@ const EXPORT_COLUMNS = [
   ['Type', 'type'],
   ["Date d'envoi", 'dateEnvoi'],
   ['Statut', 'statut'],
-  ['Priorité', 'priorite'],
   ['Prochaine action', 'prochaineAction'],
   ['Contacts', 'contacts'],
   ['Lien', 'lienUrl'],
@@ -33,4 +32,3 @@ export const exportApplicationsToExcel = (applications) => {
   utils.book_append_sheet(workbook, worksheet, 'Candidatures');
   writeFile(workbook, 'job-applications.xlsx');
 };
-
