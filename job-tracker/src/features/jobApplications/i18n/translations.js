@@ -50,10 +50,6 @@ export const translations = {
           title: 'Répartition par statut',
           description: 'Comparez vos candidatures en fonction de leur statut actuel.',
         },
-        priorityBreakdown: {
-          title: 'Priorités',
-          description: "Visualisez quelles candidatures nécessitent le plus d'attention.",
-        },
         timeline: {
           title: 'Volume de candidatures',
           description: 'Suivez votre rythme de candidatures jour après jour ou semaine par semaine.',
@@ -90,8 +86,6 @@ export const translations = {
     filters: {
       statusLabel: 'Statut',
       statusAll: 'Tous les statuts',
-      priorityLabel: 'Priorité',
-      priorityAll: 'Toutes les priorités',
       typeLabel: 'Type',
       typeAll: 'Tous les types',
     },
@@ -100,7 +94,6 @@ export const translations = {
         company: 'Entreprise',
         position: 'Poste',
         status: 'Statut',
-        priority: 'Priorité',
         nextAction: 'Prochaine action',
         actions: 'Actions',
       },
@@ -108,7 +101,7 @@ export const translations = {
     },
     favoritesBoard: {
       title: 'Mes candidatures favorites',
-      subtitle: 'Classez vos candidatures par ordre de préférence pour suivre vos priorités.',
+      subtitle: 'Classez vos candidatures par ordre de préférence pour garder vos favoris en vue.',
       empty: 'Ajoutez des candidatures pour définir vos favoris.',
       backToList: 'Retour à la liste',
       orderLabel: 'Position',
@@ -126,11 +119,6 @@ export const translations = {
       Entretien: 'Entretien',
       Acceptée: 'Acceptée',
       Refusée: 'Refusée',
-    },
-    priorities: {
-      Haute: 'Haute',
-      Moyenne: 'Moyenne',
-      Basse: 'Basse',
     },
     types: {
       Offre: 'Offre',
@@ -150,7 +138,6 @@ export const translations = {
         sentDate: "Date d'envoi",
         status: 'Statut',
         nextAction: 'Prochaine action',
-        priority: 'Priorité',
         link: 'Lien',
         contacts: 'Contacts',
         notes: 'Notes',
@@ -271,10 +258,6 @@ export const translations = {
           title: 'Status distribution',
           description: 'Compare how many applications sit in each status.',
         },
-        priorityBreakdown: {
-          title: 'Priorities',
-          description: 'See where your attention is most needed.',
-        },
         timeline: {
           title: 'Application timeline',
           description: 'Track how many applications you send day by day or week by week.',
@@ -311,8 +294,6 @@ export const translations = {
     filters: {
       statusLabel: 'Status',
       statusAll: 'All statuses',
-      priorityLabel: 'Priority',
-      priorityAll: 'All priorities',
       typeLabel: 'Type',
       typeAll: 'All types',
     },
@@ -321,7 +302,6 @@ export const translations = {
         company: 'Company',
         position: 'Role',
         status: 'Status',
-        priority: 'Priority',
         nextAction: 'Next action',
         actions: 'Actions',
       },
@@ -329,7 +309,7 @@ export const translations = {
     },
     favoritesBoard: {
       title: 'Favourite ranking',
-      subtitle: 'Drag and drop applications to keep your favourites in order.',
+      subtitle: 'Drag and drop applications to keep your favourite opportunities on top.',
       empty: 'Add applications to build your favourites list.',
       backToList: 'Back to list',
       orderLabel: 'Position',
@@ -347,11 +327,6 @@ export const translations = {
       Entretien: 'Interview',
       Acceptée: 'Accepted',
       Refusée: 'Rejected',
-    },
-    priorities: {
-      Haute: 'High',
-      Moyenne: 'Medium',
-      Basse: 'Low',
     },
     types: {
       Offre: 'Posting',
@@ -371,7 +346,6 @@ export const translations = {
         sentDate: 'Send date',
         status: 'Status',
         nextAction: 'Next action',
-        priority: 'Priority',
         link: 'Link',
         contacts: 'Contacts',
         notes: 'Notes',
