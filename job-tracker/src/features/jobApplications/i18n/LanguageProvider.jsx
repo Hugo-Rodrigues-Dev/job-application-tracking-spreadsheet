@@ -105,7 +105,6 @@ export const LanguageProvider = ({ children }) => {
       toggleLanguage,
       t: translate,
       translateStatus: (status) => translateFromGroup('statuses', status),
-      translatePriority: (priority) => translateFromGroup('priorities', priority),
       translateType: (type) => translateFromGroup('types', type),
     };
   }, [language, setLanguageSafe, toggleLanguage, translate, translateFromGroup]);
