@@ -83,6 +83,11 @@ export const translations = {
       deleteApplication: 'Supprimer la candidature',
       openFavoritesBoard: 'Classer mes favoris',
     },
+    sorting: {
+      label: 'Mode de tri',
+      status: 'Par statut',
+      favorites: 'Par favoris',
+    },
     filters: {
       statusLabel: 'Statut',
       statusAll: 'Tous les statuts',
@@ -290,6 +295,11 @@ export const translations = {
       editApplication: 'Edit application',
       deleteApplication: 'Delete application',
       openFavoritesBoard: 'Rank favourites',
+    },
+    sorting: {
+      label: 'Sort mode',
+      status: 'By status',
+      favorites: 'By favourites',
     },
     filters: {
       statusLabel: 'Status',
