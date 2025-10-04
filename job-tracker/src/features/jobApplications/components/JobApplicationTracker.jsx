@@ -130,6 +130,7 @@ const JobApplicationTracker = () => {
   const [editingId, setEditingId] = useState(null);
   const [filters, setFilters] = useState({ statut: '', type: '' });
   const [searchTerm, setSearchTerm] = useState('');
+  const [sortMode, setSortMode] = useState('status');
   const [formData, setFormData] = useState(createEmptyFormData);
   const [initialFormSnapshot, setInitialFormSnapshot] = useState(createEmptyFormData);
   const [currentPage, setCurrentPage] = useState(1);
@@ -227,6 +228,13 @@ const JobApplicationTracker = () => {
     [persistApplications],
   );
 
+  const favoritesComparator = useCallback((a, b) => {
+    const rankA = typeof a.favoriteRank === 'number' ? a.favoriteRank : Number.MAX_SAFE_INTEGER;
+    const rankB = typeof b.favoriteRank === 'number' ? b.favoriteRank : Number.MAX_SAFE_INTEGER;
+    if (rankA !== rankB) return rankA - rankB;
+    return (a.entreprise || '').localeCompare(b.entreprise || '', undefined, { sensitivity: 'base' });
+  }, []);
+
   const favoritesOrderedApplications = useMemo(() => {
     if (!Array.isArray(applications)) return [];
 
@@ -235,15 +243,12 @@ const JobApplicationTracker = () => {
         ...app,
         favoriteRank: typeof app.favoriteRank === 'number' ? app.favoriteRank : Number.MAX_SAFE_INTEGER,
       }))
-      .sort((a, b) => {
-        if (a.favoriteRank !== b.favoriteRank) return a.favoriteRank - b.favoriteRank;
-        return (a.entreprise || '').localeCompare(b.entreprise || '', undefined, { sensitivity: 'base' });
-      })
+      .sort(favoritesComparator)
       .map((app, index) => ({
         ...app,
         favoriteRank: index,
       }));
-  }, [applications]);
+  }, [applications, favoritesComparator]);
 
   const handleOpenFavoritesBoard = useCallback(() => setActiveView('favoritesBoard'), []);
   const handleCloseFavoritesBoard = useCallback(() => setActiveView('table'), []);
@@ -529,12 +534,19 @@ const JobApplicationTracker = () => {
     });
   }, [applications, filters, searchTerm]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredApplications.length / PAGE_SIZE));
+  const sortedFilteredApplications = useMemo(() => {
+    if (sortMode === 'favorites') {
+      return [...filteredApplications].sort(favoritesComparator);
+    }
+    return sortApplications(filteredApplications);
+  }, [filteredApplications, sortMode, favoritesComparator]);
+
+  const totalPages = Math.max(1, Math.ceil(sortedFilteredApplications.length / PAGE_SIZE));
 
   const paginatedApplications = useMemo(() => {
     const startIndex = (currentPage - 1) * PAGE_SIZE;
-    return filteredApplications.slice(startIndex, startIndex + PAGE_SIZE);
-  }, [filteredApplications, currentPage]);
+    return sortedFilteredApplications.slice(startIndex, startIndex + PAGE_SIZE);
+  }, [sortedFilteredApplications, currentPage]);
 
   const analyticsData = useMemo(() => {
     const statusCounts = {};
@@ -706,7 +718,7 @@ const JobApplicationTracker = () => {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [filters, searchTerm]);
+  }, [filters, searchTerm, sortMode]);
 
   useEffect(() => {
     setCurrentPage((prev) => Math.min(prev, totalPages));
@@ -874,6 +886,37 @@ const JobApplicationTracker = () => {
                   </section>
 
                   <section className="rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-sm">
+                    <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <span className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                        {t('sorting.label')}
+                      </span>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setSortMode('status')}
+                          aria-pressed={sortMode === 'status'}
+                          className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+                            sortMode === 'status'
+                              ? 'border-blue-500 bg-blue-500 text-white shadow-sm'
+                              : 'border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:text-blue-600'
+                          }`}
+                        >
+                          {t('sorting.status')}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSortMode('favorites')}
+                          aria-pressed={sortMode === 'favorites'}
+                          className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+                            sortMode === 'favorites'
+                              ? 'border-blue-500 bg-blue-500 text-white shadow-sm'
+                              : 'border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:text-blue-600'
+                          }`}
+                        >
+                          {t('sorting.favorites')}
+                        </button>
+                      </div>
+                    </div>
                     <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white/95">
                       <table className="min-w-full">
                             <thead className="bg-gray-50">
