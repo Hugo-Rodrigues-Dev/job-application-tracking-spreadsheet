@@ -23,9 +23,9 @@ const Dialog = ({
   children,
   size = 'md',
 }) => {
-  if (!open) return null;
-
   const { t } = useLanguage();
+
+  if (!open) return null;
 
   const handleOverlayClick = (event) => {
     if (event.target === event.currentTarget) {
