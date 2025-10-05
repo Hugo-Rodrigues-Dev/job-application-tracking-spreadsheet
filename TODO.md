@@ -17,6 +17,7 @@
 - [ ] Implement calendar integration to visualize application deadlines and interviews.
 
 ## Done
+- [x] Added companies management view with categories and quick access to company websites.
 - [x] Added a page to list the desired positions in order of preference and always know which one to prioritize
 - [x] Added analytics dashboard with charts to visualize application statistics.
 - [x] Added sidebar navigation for different views (dashboard, settings, ...).
