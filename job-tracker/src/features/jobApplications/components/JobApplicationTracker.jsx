@@ -14,8 +14,14 @@ import {
 } from 'lucide-react';
 import { INITIAL_APPLICATIONS } from '../data/initialApplications';
 import { STATUS_OPTIONS, TYPE_OPTIONS } from '../constants/options';
+import { DEFAULT_COMPANY_CATEGORIES } from '../constants/companyCategories';
 import { getStatusColor, getStatusRowColor } from '../utils/styleTokens';
-import { loadApplications, saveApplications } from '../utils/storage';
+import {
+  loadApplications,
+  saveApplications,
+  loadCompanyCategories,
+  saveCompanyCategories,
+} from '../utils/storage';
 import { exportApplicationsToExcel } from '../utils/export';
 import { importApplicationsFromExcel } from '../utils/import';
 import Dialog from './Dialog';
@@ -23,6 +29,7 @@ import LanguageToggle from './LanguageToggle';
 import SidebarNavigation, { MobileNavigation } from './SidebarNavigation';
 import AnalyticsDashboard from './AnalyticsDashboard';
 import FavoritesOrderingBoard from './FavoritesOrderingBoard';
+import CompaniesBoard from './CompaniesBoard';
 import { useLanguage } from '../i18n/LanguageProvider';
 
 const STATUS_MIGRATIONS = {
@@ -108,6 +115,29 @@ const ensureFavoriteRanks = (applications) => {
   });
 };
 
+const generateId = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+
+const createDefaultCompanyCategories = () =>
+  DEFAULT_COMPANY_CATEGORIES.map((category) => ({
+    ...category,
+    companies: [],
+  }));
+
+const resolveCategoryName = (category, t) => {
+  if (!category) return t('companies.untitledCategory');
+  if (category.customName && category.customName.trim()) {
+    return category.customName.trim();
+  }
+  if (category.labelKey) {
+    const translated = t(category.labelKey);
+    if (translated) return translated;
+  }
+  if (category.name && String(category.name).trim()) {
+    return String(category.name).trim();
+  }
+  return t('companies.untitledCategory');
+};
+
 const JobApplicationTracker = () => {
   const { t, translateStatus, translateType, language } = useLanguage();
   const [applications, setApplications] = useState(() => {
@@ -124,6 +154,16 @@ const JobApplicationTracker = () => {
     saveApplications(seededApplications);
     return seededApplications;
   });
+  const [companyCategories, setCompanyCategories] = useState(() => {
+    const storedCategories = loadCompanyCategories();
+    if (storedCategories && Array.isArray(storedCategories) && storedCategories.length) {
+      return storedCategories;
+    }
+
+    const defaults = createDefaultCompanyCategories();
+    saveCompanyCategories(defaults);
+    return defaults;
+  });
   const [activeTab, setActiveTab] = useState('dashboard');
   const [activeView, setActiveView] = useState('table');
   const [showForm, setShowForm] = useState(false);
@@ -137,6 +177,19 @@ const JobApplicationTracker = () => {
   const [isImporting, setIsImporting] = useState(false);
   const [dialog, setDialog] = useState(null);
   const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    saveCompanyCategories(companyCategories);
+  }, [companyCategories]);
+
+  const companyCategoriesWithNames = useMemo(
+    () =>
+      companyCategories.map((category) => ({
+        ...category,
+        displayName: resolveCategoryName(category, t),
+      })),
+    [companyCategories, t],
+  );
 
   useEffect(() => {
     if (activeTab !== 'dashboard') {
@@ -702,7 +755,7 @@ const JobApplicationTracker = () => {
 
   const handleNavigationSelect = useCallback(
     (key) => {
-      if (key === 'dashboard' || key === 'analytics') {
+      if (key === 'dashboard' || key === 'analytics' || key === 'companies') {
         setActiveTab(key);
         return;
       }
@@ -711,6 +764,148 @@ const JobApplicationTracker = () => {
         title: t('navigation.comingSoonTitle'),
         description: t('navigation.hint'),
         actions: [{ label: t('common.ok'), intent: 'primary' }],
+      });
+    },
+    [openDialog, t],
+  );
+
+  const handleAddCategory = useCallback((name) => {
+    const label = name?.trim();
+    if (!label) return false;
+
+    setCompanyCategories((prev) => [
+      ...prev,
+      {
+        id: generateId(),
+        customName: label,
+        companies: [],
+      },
+    ]);
+
+    return true;
+  }, []);
+
+  const handleRenameCategory = useCallback((categoryId, name) => {
+    const label = name?.trim();
+    if (!categoryId || !label) return false;
+
+    setCompanyCategories((prev) =>
+      prev.map((category) =>
+        category.id === categoryId
+          ? {
+              ...category,
+              customName: label,
+            }
+          : category,
+      ),
+    );
+
+    return true;
+  }, []);
+
+  const handleDeleteCategory = useCallback(
+    (category) => {
+      if (!category) return;
+      const displayName = resolveCategoryName(category, t);
+
+      openDialog({
+        title: t('companies.dialog.deleteCategoryTitle', { name: displayName }),
+        description: t('companies.dialog.deleteCategoryDescription'),
+        actions: [
+          { label: t('common.cancel'), intent: 'secondary' },
+          {
+            label: t('companies.actions.deleteCategoryConfirm'),
+            intent: 'danger',
+            onClick: () => {
+              setCompanyCategories((prev) => prev.filter((item) => item.id !== category.id));
+            },
+          },
+        ],
+      });
+    },
+    [openDialog, t],
+  );
+
+  const handleAddCompany = useCallback((categoryId, company) => {
+    if (!categoryId || !company?.name?.trim()) return false;
+
+    setCompanyCategories((prev) =>
+      prev.map((category) =>
+        category.id === categoryId
+          ? {
+              ...category,
+              companies: [
+                ...(Array.isArray(category.companies) ? category.companies : []),
+                {
+                  id: generateId(),
+                  name: company.name.trim(),
+                  website: company.website || '',
+                  notes: company.notes || '',
+                },
+              ],
+            }
+          : category,
+      ),
+    );
+
+    return true;
+  }, []);
+
+  const handleUpdateCompany = useCallback((categoryId, companyId, updates) => {
+    if (!categoryId || !companyId) return false;
+
+    setCompanyCategories((prev) =>
+      prev.map((category) => {
+        if (category.id !== categoryId) return category;
+
+        return {
+          ...category,
+          companies: (Array.isArray(category.companies) ? category.companies : []).map((company) =>
+            company.id === companyId
+              ? {
+                  ...company,
+                  name: updates.name?.trim() || company.name,
+                  website: updates.website ?? company.website,
+                  notes: updates.notes ?? company.notes,
+                }
+              : company,
+          ),
+        };
+      }),
+    );
+
+    return true;
+  }, []);
+
+  const handleRemoveCompany = useCallback(
+    (category, company) => {
+      if (!category || !company) return;
+      const categoryName = resolveCategoryName(category, t);
+
+      openDialog({
+        title: t('companies.dialog.deleteCompanyTitle', { name: company.name }),
+        description: t('companies.dialog.deleteCompanyDescription', { category: categoryName }),
+        actions: [
+          { label: t('common.cancel'), intent: 'secondary' },
+          {
+            label: t('companies.actions.deleteCompanyConfirm'),
+            intent: 'danger',
+            onClick: () => {
+              setCompanyCategories((prev) =>
+                prev.map((item) =>
+                  item.id === category.id
+                    ? {
+                        ...item,
+                        companies: (Array.isArray(item.companies) ? item.companies : []).filter(
+                          (entry) => entry.id !== company.id,
+                        ),
+                      }
+                    : item,
+                ),
+              );
+            },
+          },
+        ],
       });
     },
     [openDialog, t],
@@ -1045,8 +1240,19 @@ const JobApplicationTracker = () => {
                     </>
                   )}
                 </>
-              ) : (
+              ) : activeTab === 'analytics' ? (
                 <AnalyticsDashboard data={analyticsData} />
+              ) : (
+                <CompaniesBoard
+                  categories={companyCategoriesWithNames}
+                  onAddCategory={handleAddCategory}
+                  onRenameCategory={handleRenameCategory}
+                  onDeleteCategory={handleDeleteCategory}
+                  onAddCompany={handleAddCompany}
+                  onUpdateCompany={handleUpdateCompany}
+                  onRemoveCompany={handleRemoveCompany}
+                  t={t}
+                />
               )}
             </div>
           </div>
