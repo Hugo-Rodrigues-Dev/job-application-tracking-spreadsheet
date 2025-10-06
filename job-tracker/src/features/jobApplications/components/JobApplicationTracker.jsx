@@ -26,6 +26,7 @@ import { exportApplicationsToExcel } from '../utils/export';
 import { importApplicationsFromExcel } from '../utils/import';
 import Dialog from './Dialog';
 import LanguageToggle from './LanguageToggle';
+import SettingsPanel from './SettingsPanel';
 import SidebarNavigation, { MobileNavigation } from './SidebarNavigation';
 import AnalyticsDashboard from './AnalyticsDashboard';
 import FavoritesOrderingBoard from './FavoritesOrderingBoard';
@@ -755,7 +756,7 @@ const JobApplicationTracker = () => {
 
   const handleNavigationSelect = useCallback(
     (key) => {
-      if (key === 'dashboard' || key === 'analytics' || key === 'companies') {
+      if (key === 'dashboard' || key === 'analytics' || key === 'companies' || key === 'settings') {
         setActiveTab(key);
         return;
       }
@@ -921,7 +922,7 @@ const JobApplicationTracker = () => {
 
   return (
     <>
-      <div className="min-h-screen bg-slate-100 lg:flex">
+      <div className="min-h-screen bg-slate-100 transition-colors lg:flex dark:bg-slate-950">
         <SidebarNavigation activeKey={activeTab} onSelect={handleNavigationSelect} />
         <div className="flex-1">
           <MobileNavigation activeKey={activeTab} onSelect={handleNavigationSelect} />
@@ -929,7 +930,7 @@ const JobApplicationTracker = () => {
             <div className="space-y-6">
               {activeTab === 'dashboard' ? (
                 <>
-                  <section className="rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-sm">
+                  <section className="rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-sm transition-colors">
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                       <div>
                         <h1 className="text-3xl font-bold text-gray-900">{t('header.title')}</h1>
@@ -978,7 +979,7 @@ const JobApplicationTracker = () => {
                   </section>
 
                   {isFavoritesBoard ? (
-                    <section className="rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-sm">
+                    <section className="rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-sm transition-colors">
                       <FavoritesOrderingBoard
                         applications={favoritesOrderedApplications}
                         onBack={handleCloseFavoritesBoard}
@@ -990,7 +991,7 @@ const JobApplicationTracker = () => {
                     </section>
                   ) : (
                     <>
-                      <section className="rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-sm">
+                      <section className="rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-sm transition-colors">
                         <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
                           <div className="relative flex-1">
                             <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
@@ -1080,7 +1081,7 @@ const JobApplicationTracker = () => {
                     </div>
                   </section>
 
-                  <section className="rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-sm">
+                  <section className="rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-sm transition-colors">
                     <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                       <span className="text-xs font-medium uppercase tracking-wide text-slate-500">
                         {t('sorting.label')}
@@ -1242,6 +1243,8 @@ const JobApplicationTracker = () => {
                 </>
               ) : activeTab === 'analytics' ? (
                 <AnalyticsDashboard data={analyticsData} />
+              ) : activeTab === 'settings' ? (
+                <SettingsPanel />
               ) : (
                 <CompaniesBoard
                   categories={companyCategoriesWithNames}
