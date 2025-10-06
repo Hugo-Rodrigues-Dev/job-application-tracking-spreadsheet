@@ -26,6 +26,24 @@ export const translations = {
       hint: 'Bientôt : analytics, personnalisation et plus encore.',
       comingSoonTitle: 'Fonctionnalité à venir',
     },
+    settings: {
+      title: 'Paramètres',
+      subtitle: 'Personnalisez l\'apparence et la langue de votre espace.',
+      appearance: {
+        title: 'Apparence',
+        description: 'Passez en mode clair ou sombre selon votre préférence.',
+        light: 'Clair',
+        dark: 'Sombre',
+      },
+      language: {
+        title: 'Langue',
+        description: 'Choisissez la langue de l\'interface.',
+        options: {
+          fr: 'Fr',
+          en: 'En',
+        },
+      },
+    },
     stats: {
       total: 'Total candidatures',
       interviewsAccepted: 'Entretiens/Acceptées',
@@ -289,6 +307,24 @@ export const translations = {
       },
       hint: 'Coming soon: analytics, customization, and more.',
       comingSoonTitle: 'Coming soon',
+    },
+    settings: {
+      title: 'Settings',
+      subtitle: 'Customize how the app looks and reads.',
+      appearance: {
+        title: 'Appearance',
+        description: 'Switch between light and dark mode.',
+        light: 'LIGHT',
+        dark: 'DARK',
+      },
+      language: {
+        title: 'Language',
+        description: 'Choose the interface language.',
+        options: {
+          fr: 'Fr',
+          en: 'En',
+        },
+      },
     },
     stats: {
       total: 'Total applications',
