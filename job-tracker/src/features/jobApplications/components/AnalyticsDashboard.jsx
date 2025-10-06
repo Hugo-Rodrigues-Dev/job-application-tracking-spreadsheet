@@ -30,7 +30,7 @@ const TYPE_COLORS = {
 
 const ChartSection = ({ title, description, height = 320, className = '', children }) => (
   <section
-    className={`rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-sm ${className}`.trim()}
+    className={`rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-sm transition-colors ${className}`.trim()}
   >
     <header className="mb-4">
       <h2 className="text-xl font-semibold text-slate-900">{title}</h2>

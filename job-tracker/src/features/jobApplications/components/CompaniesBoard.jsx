@@ -103,7 +103,7 @@ const CompaniesBoard = ({
   };
 
   return (
-    <section className="rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-sm">
+    <section className="rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-sm transition-colors">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">{t('companies.title')}</h1>
