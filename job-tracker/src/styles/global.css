@@ -1,3 +1,91 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+@layer base {
+  body {
+    @apply bg-slate-100 text-slate-900 antialiased;
+  }
+
+  .dark body {
+    @apply bg-slate-950 text-slate-100;
+    color-scheme: dark;
+  }
+}
+
+@layer utilities {
+  .dark .text-gray-900 { color: #e2e8f0 !important; }
+  .dark .text-gray-800 { color: #cbd5f5 !important; }
+  .dark .text-gray-700 { color: #cbd5f5 !important; }
+  .dark .text-gray-600 { color: #94a3b8 !important; }
+  .dark .text-gray-500 { color: #94a3b8 !important; }
+  .dark .text-gray-400 { color: #64748b !important; }
+  .dark .text-slate-500 { color: #94a3b8 !important; }
+  .dark .text-slate-600 { color: #94a3b8 !important; }
+  .dark .text-slate-400 { color: #cbd5f5 !important; }
+
+  .dark .bg-slate-100 { background-color: #0f172a !important; }
+  .dark .bg-white { background-color: #111827 !important; }
+  .dark .bg-white\/95 { background-color: rgba(15, 23, 42, 0.92) !important; }
+  .dark .bg-white\/90 { background-color: rgba(15, 23, 42, 0.85) !important; }
+  .dark .bg-white\/80 { background-color: rgba(15, 23, 42, 0.75) !important; }
+  .dark .bg-white\/70 { background-color: rgba(15, 23, 42, 0.7) !important; }
+  .dark .bg-white\/60 { background-color: rgba(15, 23, 42, 0.6) !important; }
+  .dark .bg-slate-50 { background-color: rgba(30, 41, 59, 0.6) !important; }
+  .dark .bg-slate-50\/60 { background-color: rgba(30, 41, 59, 0.6) !important; }
+
+  .dark .bg-blue-50 { background-color: rgba(37, 99, 235, 0.25) !important; }
+  .dark .bg-green-50 { background-color: rgba(34, 197, 94, 0.18) !important; }
+  .dark .bg-green-100 { background-color: rgba(34, 197, 94, 0.24) !important; }
+  .dark .bg-orange-50 { background-color: rgba(249, 115, 22, 0.25) !important; }
+  .dark .bg-red-50 { background-color: rgba(239, 68, 68, 0.25) !important; }
+  .dark .bg-gray-50 { background-color: rgba(71, 85, 105, 0.4) !important; }
+  .dark .bg-blue-500\/10 { background-color: rgba(37, 99, 235, 0.2) !important; }
+  .dark .bg-indigo-500\/10 { background-color: rgba(79, 70, 229, 0.2) !important; }
+  .dark .bg-purple-500\/10 { background-color: rgba(168, 85, 247, 0.2) !important; }
+
+  .dark .border-gray-100 { border-color: rgba(148, 163, 184, 0.25) !important; }
+  .dark .border-gray-200 { border-color: rgba(148, 163, 184, 0.35) !important; }
+  .dark .border-slate-200 { border-color: rgba(148, 163, 184, 0.35) !important; }
+  .dark .border-slate-200\/80 { border-color: rgba(148, 163, 184, 0.4) !important; }
+  .dark .border-slate-200\/60 { border-color: rgba(148, 163, 184, 0.35) !important; }
+  .dark .border-slate-200\/50 { border-color: rgba(148, 163, 184, 0.3) !important; }
+  .dark .border-green-500 { border-color: rgba(34, 197, 94, 0.55) !important; }
+  .dark .border-green-600 { border-color: rgba(34, 197, 94, 0.75) !important; }
+
+  .dark .shadow-sm { box-shadow: 0 10px 30px rgba(15, 23, 42, 0.45) !important; }
+  .dark .shadow-lg { box-shadow: 0 20px 45px rgba(15, 23, 42, 0.6) !important; }
+}
+@layer utilities {
+  .dark .from-white { --tw-gradient-from: #111827 var(--tw-gradient-from-position); --tw-gradient-to: rgba(17, 24, 39, 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+  .dark .from-white\/95 { --tw-gradient-from: rgba(15, 23, 42, 0.92) var(--tw-gradient-from-position); --tw-gradient-to: rgba(15, 23, 42, 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+  .dark .to-blue-50\/40 { --tw-gradient-to: rgba(37, 99, 235, 0.2) var(--tw-gradient-to-position); }
+  .dark .to-blue-50\/60 { --tw-gradient-to: rgba(37, 99, 235, 0.25) var(--tw-gradient-to-position); }
+  .dark .to-purple-500\/20 { --tw-gradient-to: rgba(168, 85, 247, 0.25) var(--tw-gradient-to-position); }
+  .dark .via-indigo-500\/10 { --tw-gradient-stops: var(--tw-gradient-from), rgba(79, 70, 229, 0.25), var(--tw-gradient-to); }
+  .dark .via-indigo-500\/20 { --tw-gradient-stops: var(--tw-gradient-from), rgba(79, 70, 229, 0.35), var(--tw-gradient-to); }
+}
+
+@layer base {
+  .dark input,
+  .dark textarea,
+  .dark select {
+    background-color: rgba(15, 23, 42, 0.85);
+    color: #e2e8f0;
+    border-color: rgba(148, 163, 184, 0.4);
+  }
+
+  .dark input::placeholder,
+  .dark textarea::placeholder {
+    color: #64748b;
+  }
+
+  .dark button { transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease; }
+}
+@layer utilities {
+  .dark .text-slate-900 { color: #e2e8f0 !important; }
+  .dark .text-slate-800 { color: #cbd5f5 !important; }
+  .dark .text-blue-600 { color: #60a5fa !important; }
+  .dark .text-green-600 { color: #4ade80 !important; }
+  .dark .text-orange-600 { color: #fb923c !important; }
+  .dark .text-red-600 { color: #f87171 !important; }
+}
