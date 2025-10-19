@@ -1,0 +1,5 @@
+#!/usr/bin/env sh
+. "$(dirname "$0")/_/husky.sh"
+
+echo "🔍 Running gitleaks scan on staged changes..."
+npx --yes gitleaks protect --staged --no-banner
