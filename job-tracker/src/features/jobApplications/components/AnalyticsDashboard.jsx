@@ -11,7 +11,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { useLanguage } from '../i18n/LanguageProvider';
+import { useLanguage } from '../i18n/LanguageContext';
 
 const STATUS_COLORS = {
   'A Envoyer': '#3b82f6',

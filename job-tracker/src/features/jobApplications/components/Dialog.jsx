@@ -1,5 +1,5 @@
 import { X } from 'lucide-react';
-import { useLanguage } from '../i18n/LanguageProvider';
+import { useLanguage } from '../i18n/LanguageContext';
 
 const intentClasses = {
   primary: 'bg-blue-600 hover:bg-blue-700 text-white',

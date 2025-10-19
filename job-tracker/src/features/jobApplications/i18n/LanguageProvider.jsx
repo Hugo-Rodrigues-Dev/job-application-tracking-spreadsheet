@@ -1,7 +1,7 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supportedLanguages, translations } from './translations';
+import { LanguageContext } from './LanguageContext';
 
-const LanguageContext = createContext(null);
 const STORAGE_KEY = 'job-tracker-language';
 const DEFAULT_LANGUAGE = 'fr';
 
@@ -110,12 +110,4 @@ export const LanguageProvider = ({ children }) => {
   }, [language, setLanguageSafe, toggleLanguage, translate, translateFromGroup]);
 
   return <LanguageContext.Provider value={contextValue}>{children}</LanguageContext.Provider>;
-};
-
-export const useLanguage = () => {
-  const context = useContext(LanguageContext);
-  if (!context) {
-    throw new Error('useLanguage must be used within a LanguageProvider');
-  }
-  return context;
 };

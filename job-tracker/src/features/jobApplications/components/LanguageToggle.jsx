@@ -1,4 +1,4 @@
-import { useLanguage } from '../i18n/LanguageProvider';
+import { useLanguage } from '../i18n/LanguageContext';
 
 const LanguageToggle = () => {
   const { language, toggleLanguage, t } = useLanguage();

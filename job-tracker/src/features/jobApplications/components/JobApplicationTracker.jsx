@@ -17,11 +17,12 @@ import { STATUS_OPTIONS, TYPE_OPTIONS } from '../constants/options';
 import { DEFAULT_COMPANY_CATEGORIES } from '../constants/companyCategories';
 import { getStatusColor, getStatusRowColor } from '../utils/styleTokens';
 import {
-  loadApplications,
-  saveApplications,
-  loadCompanyCategories,
-  saveCompanyCategories,
-} from '../utils/storage';
+  listApplications as fetchApplications,
+  replaceApplications as persistApplicationsToRepository,
+  listCompanyCategories as fetchCompanyCategories,
+  saveCompanyCategories as persistCompanyCategories,
+  getActiveDataSourceType,
+} from '../../../data/repository';
 import { exportApplicationsToExcel } from '../utils/export';
 import { importApplicationsFromExcel } from '../utils/import';
 import Dialog from './Dialog';
@@ -31,7 +32,7 @@ import SidebarNavigation, { MobileNavigation } from './SidebarNavigation';
 import AnalyticsDashboard from './AnalyticsDashboard';
 import FavoritesOrderingBoard from './FavoritesOrderingBoard';
 import CompaniesBoard from './CompaniesBoard';
-import { useLanguage } from '../i18n/LanguageProvider';
+import { useLanguage } from '../i18n/LanguageContext';
 
 const STATUS_MIGRATIONS = {
   Envoyée: 'A Envoyer',
@@ -141,30 +142,10 @@ const resolveCategoryName = (category, t) => {
 
 const JobApplicationTracker = () => {
   const { t, translateStatus, translateType, language } = useLanguage();
-  const [applications, setApplications] = useState(() => {
-    const storedApplications = loadApplications();
-    if (storedApplications && Array.isArray(storedApplications)) {
-      const normalized = ensureFavoriteRanks(sortApplications(normalizeApplications(storedApplications)));
-      saveApplications(normalized);
-      return normalized;
-    }
-
-    const seededApplications = ensureFavoriteRanks(
-      sortApplications(normalizeApplications(INITIAL_APPLICATIONS)),
-    );
-    saveApplications(seededApplications);
-    return seededApplications;
-  });
-  const [companyCategories, setCompanyCategories] = useState(() => {
-    const storedCategories = loadCompanyCategories();
-    if (storedCategories && Array.isArray(storedCategories) && storedCategories.length) {
-      return storedCategories;
-    }
-
-    const defaults = createDefaultCompanyCategories();
-    saveCompanyCategories(defaults);
-    return defaults;
-  });
+  const dataSourceType = useMemo(() => getActiveDataSourceType(), []);
+  const [applications, setApplications] = useState([]);
+  const [companyCategories, setCompanyCategories] = useState([]);
+  const [isDataInitialized, setIsDataInitialized] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [activeView, setActiveView] = useState('table');
   const [showForm, setShowForm] = useState(false);
@@ -178,10 +159,90 @@ const JobApplicationTracker = () => {
   const [isImporting, setIsImporting] = useState(false);
   const [dialog, setDialog] = useState(null);
   const fileInputRef = useRef(null);
+  const hasPersistedCategoriesRef = useRef(false);
 
   useEffect(() => {
-    saveCompanyCategories(companyCategories);
-  }, [companyCategories]);
+    let isActive = true;
+
+    const initializeData = async () => {
+      try {
+        const [storedApplications, storedCategories] = await Promise.all([
+          fetchApplications(),
+          fetchCompanyCategories(),
+        ]);
+
+        let resolvedApplications = [];
+        if (Array.isArray(storedApplications) && storedApplications.length) {
+          resolvedApplications = ensureFavoriteRanks(
+            sortApplications(normalizeApplications(storedApplications)),
+          );
+          if (dataSourceType === 'local') {
+            await persistApplicationsToRepository(resolvedApplications);
+          }
+        } else if (dataSourceType === 'local') {
+          resolvedApplications = ensureFavoriteRanks(
+            sortApplications(normalizeApplications(INITIAL_APPLICATIONS)),
+          );
+          await persistApplicationsToRepository(resolvedApplications);
+        }
+
+        if (isActive) {
+          setApplications(resolvedApplications);
+        }
+
+        let resolvedCategories = createDefaultCompanyCategories();
+        if (Array.isArray(storedCategories) && storedCategories.length) {
+          resolvedCategories = storedCategories;
+        } else {
+          await persistCompanyCategories(resolvedCategories);
+        }
+
+        if (isActive) {
+          setCompanyCategories(resolvedCategories);
+        }
+      } catch (error) {
+        console.error('Failed to initialize data source', error);
+        if (isActive) {
+          const fallbackApplications =
+            dataSourceType === 'local'
+              ? ensureFavoriteRanks(sortApplications(normalizeApplications(INITIAL_APPLICATIONS)))
+              : [];
+          const fallbackCategories = createDefaultCompanyCategories();
+          setApplications(fallbackApplications);
+          setCompanyCategories(fallbackCategories);
+        }
+      } finally {
+        if (isActive) {
+          setIsDataInitialized(true);
+        }
+      }
+    };
+
+    initializeData();
+
+    return () => {
+      isActive = false;
+    };
+  }, [dataSourceType]);
+
+  useEffect(() => {
+    if (!isDataInitialized) return;
+    if (!hasPersistedCategoriesRef.current) {
+      hasPersistedCategoriesRef.current = true;
+      return;
+    }
+
+    void persistCompanyCategories(companyCategories).catch((error) => {
+      console.warn('Unable to save company categories', error);
+    });
+  }, [companyCategories, isDataInitialized]);
+
+  useEffect(() => {
+    if (!isDataInitialized || dataSourceType !== 'local') return;
+    void persistApplicationsToRepository(applications).catch((error) => {
+      console.error('Unable to persist applications', error);
+    });
+  }, [applications, dataSourceType, isDataInitialized]);
 
   const companyCategoriesWithNames = useMemo(
     () =>
@@ -252,9 +313,7 @@ const JobApplicationTracker = () => {
       const next = typeof updater === 'function' ? updater(prev) : updater;
       if (!Array.isArray(next)) return prev;
       const normalized = sortApplications(normalizeApplications(next));
-      const ranked = ensureFavoriteRanks(normalized);
-      saveApplications(ranked);
-      return ranked;
+      return ensureFavoriteRanks(normalized);
     });
   }, []);
 
@@ -262,7 +321,7 @@ const JobApplicationTracker = () => {
     (orderedIds) => {
       if (!Array.isArray(orderedIds)) return;
 
-      persistApplications((prev) => {
+      void persistApplications((prev) => {
         const existing = Array.isArray(prev) ? prev : [];
         const idToRank = new Map(orderedIds.map((id, index) => [String(id), index]));
 
@@ -309,7 +368,7 @@ const JobApplicationTracker = () => {
 
   const executeSave = useCallback(() => {
     if (editingId) {
-      persistApplications((prev) =>
+      void persistApplications((prev) =>
         prev.map((app) =>
           app.id === editingId
             ? { ...formData, id: editingId, favoriteRank: app.favoriteRank }
@@ -317,7 +376,7 @@ const JobApplicationTracker = () => {
         ),
       );
     } else {
-      persistApplications((prev) => {
+      void persistApplications((prev) => {
         const existing = Array.isArray(prev) ? prev : [];
         const nextRank =
           existing.reduce(
@@ -344,9 +403,9 @@ const JobApplicationTracker = () => {
           favoriteRank:
             typeof app.favoriteRank === 'number' ? app.favoriteRank : index,
         }));
-        persistApplications(rankedApplications);
+        void persistApplications(rankedApplications);
       } else {
-        persistApplications((prev) => {
+        void persistApplications((prev) => {
           const existing = Array.isArray(prev) ? prev : [];
           const startRank =
             existing.reduce(
@@ -533,7 +592,7 @@ const JobApplicationTracker = () => {
           label: t('form.deleteDialog.remove'),
           intent: 'danger',
           onClick: () => {
-            persistApplications((prev) => prev.filter((app) => app.id !== application.id));
+            void persistApplications((prev) => prev.filter((app) => app.id !== application.id));
             if (editingId === application.id) {
               closeForm();
             }

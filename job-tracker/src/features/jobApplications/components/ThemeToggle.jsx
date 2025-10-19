@@ -1,5 +1,5 @@
-import { useLanguage } from '../i18n/LanguageProvider';
-import { useTheme } from '../theme/ThemeProvider';
+import { useLanguage } from '../i18n/LanguageContext';
+import { useTheme } from '../theme/ThemeContext';
 
 const ThemeToggle = () => {
   const { theme, setTheme } = useTheme();

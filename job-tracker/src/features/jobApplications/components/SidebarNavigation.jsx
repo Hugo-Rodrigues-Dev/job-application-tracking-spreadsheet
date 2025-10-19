@@ -1,5 +1,5 @@
 import { LayoutDashboard, BarChart3, CalendarDays, Briefcase, Settings } from 'lucide-react';
-import { useLanguage } from '../i18n/LanguageProvider';
+import { useLanguage } from '../i18n/LanguageContext';
 
 const NAV_ITEMS = [
   { key: 'dashboard', icon: LayoutDashboard },

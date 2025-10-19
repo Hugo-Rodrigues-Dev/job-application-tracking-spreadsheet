@@ -1,7 +1,7 @@
 import { Globe2, Sun } from 'lucide-react';
 import LanguageToggle from './LanguageToggle';
 import ThemeToggle from './ThemeToggle';
-import { useLanguage } from '../i18n/LanguageProvider';
+import { useLanguage } from '../i18n/LanguageContext';
 
 const SectionCard = ({ icon: Icon, title, description, control }) => (
   <section className="rounded-3xl border border-slate-200/80 bg-white/95 p-5 shadow-sm transition-colors dark:border-slate-700/80 dark:bg-slate-900/80">

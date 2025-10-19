@@ -1,6 +1,6 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ThemeContext } from './ThemeContext';
 
-const ThemeContext = createContext(null);
 const STORAGE_KEY = 'job-tracker-theme';
 const DEFAULT_THEME = 'light';
 
@@ -39,15 +39,6 @@ export const ThemeProvider = ({ children }) => {
     }
   }, [theme]);
 
-  useEffect(() => {
-    const stored = typeof window !== 'undefined' ? window.localStorage.getItem(STORAGE_KEY) : null;
-    if (stored === 'light' || stored === 'dark') {
-      applyThemeClass(stored);
-      return;
-    }
-    applyThemeClass(theme);
-  }, []);
-
   const setThemeSafe = useCallback((nextTheme) => {
     if (nextTheme === 'light' || nextTheme === 'dark') {
       setTheme(nextTheme);
@@ -69,12 +60,4 @@ export const ThemeProvider = ({ children }) => {
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
-};
-
-export const useTheme = () => {
-  const context = useContext(ThemeContext);
-  if (!context) {
-    throw new Error('useTheme must be used within a ThemeProvider');
-  }
-  return context;
 };
